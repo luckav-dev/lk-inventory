@@ -1,65 +1,157 @@
-# ox_inventory
+<div align="center">
 
-A complete inventory system for FiveM, implementing items, weapons, shops, and more without any strict framework dependency.
+# LK Inventory
 
-![](https://img.shields.io/github/downloads/overextended/ox_inventory/total?logo=github)
-![](https://img.shields.io/github/downloads/overextended/ox_inventory/latest/total?logo=github)
-![](https://img.shields.io/github/contributors/overextended/ox_inventory?logo=github)
-![](https://img.shields.io/github/v/release/overextended/ox_inventory?logo=github)
+A premium, fully redesigned inventory system for FiveM built on the [ox_inventory](https://github.com/overextended/ox_inventory) backend with a custom **Svelte + TypeScript** NUI frontend.
 
-## 📚 Documentation
+[![Version](https://img.shields.io/badge/version-2.47.5-e42a2d?style=for-the-badge)](https://github.com/luckav-dev/lk-inventory)
+[![FiveM](https://img.shields.io/badge/FiveM-ready-2cd63c?style=for-the-badge)](https://fivem.net)
+[![Lua](https://img.shields.io/badge/Lua_5.4-000080?style=for-the-badge&logo=lua&logoColor=white)](https://www.lua.org)
+[![Svelte](https://img.shields.io/badge/Svelte-FF3E00?style=for-the-badge&logo=svelte&logoColor=white)](https://svelte.dev)
 
-https://overextended.dev/ox_inventory
+</div>
 
-## 💾 Download
+---
 
-https://github.com/overextended/ox_inventory/releases/latest/download/ox_inventory.zip
+## Preview
 
-## Supported frameworks
+<div align="center">
 
-We do not guarantee compatibility or support for third-party resources.
+<img src="https://i.imgur.com/YrvYzRF.png" width="800" alt="Classic Layout" />
 
-- [ox_core](https://github.com/overextended/ox_core)
-- [esx](https://github.com/esx-framework/esx_core)
-- [qbox](https://github.com/Qbox-project/qbx_core)
-- [nd_core](https://github.com/ND-Framework/ND_Core)
+<br/><br/>
 
-## ✨ Features
+<img src="https://i.imgur.com/MUjvjGF.png" width="800" alt="Inventory Overview" />
 
-- Server-side security ensures interactions with items, shops, and stashes are all validated.
-- Logging for important events, such as purchases, item movement, and item creation or removal.
-- Supports player-owned vehicles, licenses, and group systems implemented by frameworks.
-- Fully synchronised, allowing multiple players to [access the same inventory](https://user-images.githubusercontent.com/65407488/230926091-c0033732-d293-48c9-9d62-6f6ae0a8a488.mp4).
+<br/><br/>
 
-### Items
+<img src="https://i.imgur.com/li5kSBA.png" width="800" alt="Compact Layout" />
 
-- Inventory items are stored per-slot, with customisable metadata to support item uniqueness.
-- Overrides default weapon-system with weapons as items.
-- Weapon attachments and ammo system, including special ammo types.
-- Durability, allowing items to be depleted or removed overtime.
-- Internal item system provides secure and easy handling for item use effects.
-- Compatibility with 3rd party framework item registration.
+<br/><br/>
 
-### Shops
+<img src="https://i.imgur.com/W4LXvR6.png" width="800" alt="Stash View" />
 
-- Restricted access based on groups and licenses.
-- Support different currency for items (black money, poker chips, etc).
+<br/><br/>
 
-### Stashes
+<img src="https://i.imgur.com/b59sf1A.png" width="800" alt="Weapon Modification" />
 
-- Personal stashes, linking a stash with a specific identifier or creating per-player instances.
-- Restricted access based on groups.
-- Registration of new stashes from any resource.
-- Containers allow access to stashes when using an item, like a paperbag or backpack.
-- Access gloveboxes and trunks for any vehicle.
-- Random item generation inside dumpsters and unowned vehicles.
+<br/><br/>
 
-## Copyright
+<img src="https://i.imgur.com/iiQwshA.png" width="800" alt="Crafting System" />
 
-Copyright © 2024 Overextended <https://github.com/overextended>
+</div>
 
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+---
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+## Features
 
-You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+- **Dual Layout System** — Classic side-by-side layout and a compact stacked-right layout, switchable in-game
+- **Custom Svelte NUI** — Fully rewritten frontend using Svelte, TypeScript, and SCSS with TT Lakes typography
+- **Drag & Drop** — Smooth item dragging with a scaled preview, quantity splitting with Shift, and slot swapping
+- **Hotbar System** — 5-slot quick access bar with in-game HUD overlay and hotkey badges
+- **Weight System** — Visual weight bar with real-time tracking per inventory
+- **Context Menu** — Right-click actions: Use, Give, Destroy, Favorite, and Send with quantity selector
+- **Clothing Toggle Panel** — 12 clothing category toggles (hat, mask, glasses, ears, neck, torso, vest, bag, pants, shoes, watch, bracelets)
+- **Weapon Modification** — Tactical weapon mod overlay with socket-based attachment management
+- **Crafting System** — Built-in crafting panel with recipe selection, material tracking, and progress bar
+- **Stash PIN Lock** — Numeric keypad PIN overlay for secured stashes with error feedback
+- **Shop System** — NPC shops with price tags, cash/bank display, and purchase validation
+- **Accent Color Customization** — In-game color picker with presets and custom hex input
+- **Notifications** — Slide-in item notifications with icons for add/remove events
+- **Tooltip System** — Hover tooltips with item metadata, durability, serial numbers, and ammo info
+- **Responsive Scaling** — Automatic aspect-ratio and height-based scaling for any resolution
+- **30 Languages** — Full localization support
+
+---
+
+## Dependencies
+
+| Resource | Required |
+|---|---|
+| [oxmysql](https://github.com/overextended/oxmysql) | ✅ |
+| [ox_lib](https://github.com/overextended/ox_lib) | ✅ |
+| OneSync | ✅ |
+| Server build 6116+ | ✅ |
+
+---
+
+## Installation
+
+1. Download or clone this repository into your `resources` folder
+   ```
+   git clone https://github.com/luckav-dev/lk-inventory.git
+   ```
+
+2. The NUI is pre-built — no additional build step is needed. If you want to modify the frontend:
+   ```
+   cd lk-inventory/web
+   pnpm install
+   pnpm run build
+   ```
+
+3. Add to your `server.cfg`:
+   ```
+   ensure oxmysql
+   ensure ox_lib
+   ensure lk-inventory
+   ```
+
+4. Import the required database tables from `ox_inventory` if you haven't already
+
+---
+
+## Project Structure
+
+```
+lk-inventory/
+├── client.lua              # Client-side logic
+├── server.lua              # Server-side logic
+├── init.lua                # Resource initialization
+├── fxmanifest.lua          # Resource manifest
+├── data/                   # Items, weapons, shops, stashes, crafting configs
+├── locales/                # 30 language files
+├── modules/                # Modular systems
+│   ├── bridge/             # Framework bridge (ESX/QBCore)
+│   ├── clothing/           # Clothing toggle system
+│   ├── crafting/           # Crafting logic
+│   ├── inventory/          # Core inventory logic
+│   ├── items/              # Item definitions & handlers
+│   ├── shops/              # Shop system
+│   ├── weapon/             # Weapon handling
+│   └── ...
+└── web/                    # Svelte NUI frontend
+    ├── src/
+    │   ├── components/     # Svelte components
+    │   ├── stores/         # State management
+    │   ├── styles/         # SCSS stylesheets
+    │   └── lib/            # Utilities
+    └── build/              # Production build (ready to use)
+```
+
+---
+
+## NUI Development
+
+The frontend is built with **Svelte + Vite + TypeScript + SCSS**.
+
+```bash
+cd web
+pnpm install
+pnpm run dev
+```
+
+Open `http://localhost:5173` in your browser to see the debug mockup with sample inventory data.
+
+---
+
+## License
+
+This project is licensed under the **GPL-3.0** license. See [LICENSE](LICENSE) for details.
+
+Based on [ox_inventory](https://github.com/overextended/ox_inventory) by [Overextended](https://github.com/overextended).
+
+---
+
+<div align="center">
+  <sub>Made by <strong>luckav-dev</strong></sub>
+</div>
