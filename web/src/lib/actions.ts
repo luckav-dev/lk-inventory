@@ -9,6 +9,8 @@ import {
   itemAmount,
   items,
   leftInventory,
+  locale,
+  nextNotificationId,
   notifications,
   rightInventory,
   shiftPressed,
@@ -310,11 +312,14 @@ export async function lootAllDrops() {
     moved += 1;
   }
 
+  const strings = get(locale);
+  const label = moved ? strings['ui_loot_all_collected'] || 'Recogido todo' : strings['ui_loot_all_full'] || 'Sin espacio';
+
   notifications.update((current) => [
     ...current,
     {
-      id: Date.now(),
-      item: { slot: 0, name: 'loot_all', count: moved, weight: 0, metadata: { label: moved ? 'Recogido todo' : 'Sin espacio' } },
+      id: nextNotificationId(),
+      item: { slot: 0, name: 'loot_all', count: moved, weight: 0, metadata: { label } },
       kind: moved ? 'ui_added' : 'error',
       count: moved,
     },

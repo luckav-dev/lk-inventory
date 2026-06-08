@@ -1,5 +1,7 @@
 if not lib or not IsDuplicityVersion() then return end
 
+local Inventory = require 'modules.inventory.server'
+
 local pinStashes = {}
 local unlocked = {}
 
@@ -66,6 +68,20 @@ exports('RegisterPinStash', RegisterPinStash)
 exports('SetStashPin', SetStashPin)
 exports('ClearStashPin', ClearStashPin)
 
+---Whether a stash is PIN protected and still locked for the given source.
+---Consumed by openInventory to withhold stash contents until the PIN is entered.
+---@param source number
+---@param stash string|number
+---@return boolean
+function server.isStashPinLocked(source, stash)
+    stash = stashKey(stash)
+    local config = pinStashes[stash]
+
+    if not config then return false end
+
+    return not sourceUnlocked(source, stash)
+end
+
 lib.callback.register('lk_inventory:checkStashPin', function(source, stash)
     stash = stashKey(stash)
     local config = pinStashes[stash]
@@ -89,10 +105,19 @@ lib.callback.register('lk_inventory:unlockStashPin', function(source, data)
     if pin == config.pin then
         setUnlocked(source, stash)
         TriggerClientEvent('lk_inventory:pinUnlocked', source, stash)
-        return { success = true }
+
+        -- Reveal the contents that were withheld while the stash was locked.
+        local inv = Inventory(stash)
+
+        return {
+            success = true,
+            items = inv and inv.items or {},
+            weight = inv and inv.weight or 0,
+        }
     end
 
-    return { success = false, error = 'PIN incorrecto' }
+    -- The NUI owns the (localizable) error message; the server only reports the result.
+    return { success = false }
 end)
 
 exports[shared.resource]:registerHook('swapItems', function(payload)
@@ -113,5 +138,6 @@ exports[shared.resource]:registerHook('swapItems', function(payload)
 end)
 
 AddEventHandler('playerDropped', function()
-    unlocked[source] = nil
+    local src = source
+    unlocked[src] = nil
 end)

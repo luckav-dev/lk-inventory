@@ -117,12 +117,10 @@ export function initInventory(data: {
 
 function targetStoreForPayload(payload: RefreshSlotPayload) {
   const left = get(leftInventory);
-  const right = get(rightInventory);
 
   if (!payload.inventory || payload.inventory === 'player' || payload.inventory === left.id) return leftInventory;
-  if (payload.inventory === right.id || payload.inventory !== 'player') return rightInventory;
 
-  return leftInventory;
+  return rightInventory;
 }
 
 export function refreshSlots(payload: RefreshPayload) {
@@ -210,8 +208,12 @@ export function showHotbar() {
   hotbarTimer = window.setTimeout(() => hotbarVisible.set(false), 3000);
 }
 
+export function nextNotificationId() {
+  return notificationId++;
+}
+
 export function addNotification(data: [Slot, string, number?]) {
-  const id = notificationId++;
+  const id = nextNotificationId();
   notifications.update((current) => [...current, { id, item: data[0], kind: data[1], count: data[2] }].slice(-5));
   window.setTimeout(() => {
     notifications.update((current) => current.filter((notification) => notification.id !== id));

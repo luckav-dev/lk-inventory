@@ -1674,6 +1674,19 @@ RegisterNUICallback('lk_inventory:unlockStashPin', function(data, cb)
 
 	if response and response.success then
 		TriggerEvent('lk_inventory:pinUnlocked', data and data.stash)
+
+		-- Server withheld the stash contents while locked; reveal them now.
+		if currentInventory and response.items then
+			currentInventory.items = response.items
+			currentInventory.weight = response.weight or currentInventory.weight
+
+			SendNUIMessage({
+				action = 'setupInventory',
+				data = {
+					rightInventory = currentInventory
+				}
+			})
+		end
 	end
 
 	cb(response or { success = false })

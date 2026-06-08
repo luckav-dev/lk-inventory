@@ -1,4 +1,7 @@
 {
+  "ui_pin_incorrect": "Incorrect PIN",
+  "ui_loot_all_collected": "Looted everything",
+  "ui_loot_all_full": "No space",
   "ui_use": "Use",
   "ui_give": "Give",
   "ui_close": "Close",

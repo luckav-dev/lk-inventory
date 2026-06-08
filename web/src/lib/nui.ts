@@ -16,5 +16,9 @@ export async function fetchNui<T = unknown>(eventName: string, data?: unknown): 
     body: JSON.stringify(data ?? {}),
   });
 
+  if (!response.ok) {
+    throw new Error(`NUI callback "${eventName}" failed with status ${response.status}`);
+  }
+
   return (await response.json()) as T;
 }

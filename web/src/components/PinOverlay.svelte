@@ -1,6 +1,8 @@
 <script lang="ts">
   import { fetchNui } from '../lib/nui';
-  import { pinState, pinUnlocks, rightInventory } from '../stores/state';
+  import { locale, pinState, pinUnlocks, rightInventory } from '../stores/state';
+
+  $: incorrectMessage = $locale['ui_pin_incorrect'] || 'PIN incorrecto';
 
   let pin = '';
   let busy = false;
@@ -41,7 +43,8 @@
         pin = '';
       } else {
         pin = '';
-        pinState.update((state) => (state ? { ...state, error: typeof response === 'object' ? response.error : 'PIN incorrecto' } : state));
+        const error = (typeof response === 'object' && response?.error) || incorrectMessage;
+        pinState.update((state) => (state ? { ...state, error } : state));
       }
     } finally {
       busy = false;

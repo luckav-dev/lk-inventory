@@ -290,14 +290,7 @@ local function openInventory(source, invType, data, ignoreSecurityChecks)
 
     left:openInventory(right)
 
-    return {
-        id = left.id,
-        label = left.label,
-        type = left.type,
-        slots = left.slots,
-        weight = left.weight,
-        maxWeight = left.maxWeight
-    }, right and {
+    local rightPayload = right and {
         id = right.id,
         label = right.player and '' or right.label,
         type = right.player and 'otherplayer' or right.type,
@@ -309,6 +302,22 @@ local function openInventory(source, invType, data, ignoreSecurityChecks)
         distance = right.distance,
         instance = right.instance
     }
+
+    -- Withhold the contents of a PIN-locked stash until the player enters the code.
+    -- The real items are pushed to the client by lk_inventory:unlockStashPin on success.
+    if rightPayload and server.isStashPinLocked and server.isStashPinLocked(source, right.id) then
+        rightPayload.items = {}
+        rightPayload.weight = 0
+    end
+
+    return {
+        id = left.id,
+        label = left.label,
+        type = left.type,
+        slots = left.slots,
+        weight = left.weight,
+        maxWeight = left.maxWeight
+    }, rightPayload
 end
 
 ---@param source number

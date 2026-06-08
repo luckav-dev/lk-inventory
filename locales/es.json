@@ -1,4 +1,7 @@
 {
+  "ui_pin_incorrect": "PIN incorrecto",
+  "ui_loot_all_collected": "Recogido todo",
+  "ui_loot_all_full": "Sin espacio",
   "ui_use": "Usar",
   "ui_give": "Dar",
   "ui_close": "Cerrar",
@@ -88,5 +91,5 @@
   "crafting_bench": "Banco de trabajo",
   "open_crafting_bench": "Abrir banco de trabajo",
   "not_enough_durability": "%s no tiene suficiente durabilidad",
-  "storage": "Maletero",
+  "storage": "Maletero"
 }
