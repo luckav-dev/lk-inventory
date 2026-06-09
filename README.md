@@ -89,14 +89,17 @@ A premium, fully redesigned inventory system for FiveM built on the [ox_inventor
    pnpm run build
    ```
 
-3. Add to your `server.cfg`:
+3. If you use ESX, rename the resource folder to `ox_inventory` so `es_extended` can detect it (its check does not follow the manifest `provide` alias)
+
+4. Add to your `server.cfg`, starting the inventory **after** your framework:
    ```
    ensure oxmysql
    ensure ox_lib
-   ensure lk-inventory
+   ensure es_extended
+   ensure ox_inventory
    ```
 
-4. Import the required database tables from `ox_inventory` if you haven't already
+5. Import the required database tables from `ox_inventory` if you haven't already
 
 ---
 

@@ -12,8 +12,13 @@ end)
 
 local ESX
 
-SetTimeout(500, function()
+CreateThread(function()
     lib.checkDependency('es_extended', '1.6.0', true)
+
+    -- On initial server startup the inventory can start before es_extended;
+    -- a fixed delay leaves the bridge without UseItem/GetPlayerFromId and
+    -- player inventories never load until the resource is restarted.
+    while GetResourceState('es_extended') ~= 'started' do Wait(50) end
 
 	ESX = exports.es_extended:getSharedObject()
     local customInventory = ESX.GetConfig().CustomInventory
