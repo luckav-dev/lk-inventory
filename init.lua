@@ -39,6 +39,31 @@ do
     shared.police = police
 end
 
+-- The manifest `provide 'ox_inventory'` covers GetResourceState and dependency
+-- checks, but exports are only registered under the real resource name, so
+-- exports.ox_inventory calls from es_extended and third-party scripts fail
+-- when this resource keeps its own folder name. Re-register every export
+-- under the ox_inventory alias as well.
+if shared.resource ~= 'ox_inventory' then
+    local originalExports = exports
+
+    exports = setmetatable({}, {
+        __index = function(_, resourceName)
+            return originalExports[resourceName]
+        end,
+        __newindex = function()
+            error('cannot set values on exports', 2)
+        end,
+        __call = function(_, name, fn)
+            originalExports(name, fn)
+
+            AddEventHandler(('__cfx_export_ox_inventory_%s'):format(name), function(setCB)
+                setCB(fn)
+            end)
+        end
+    })
+end
+
 if IsDuplicityVersion() then
     server = {
         loghookrejection = GetConvarBool('inventory:loghookrejection', true),
