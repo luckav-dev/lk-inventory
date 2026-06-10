@@ -91,15 +91,20 @@ A premium, fully redesigned inventory system for FiveM built on the [ox_inventor
 
 3. Keep the folder named `lk_inventory` (no need to rename it to `ox_inventory`) — the resource provides the `ox_inventory` alias and re-registers all of its exports under that name, so `es_extended` and any third-party script using `exports.ox_inventory` keep working. Just make sure you don't have another resource named `ox_inventory` installed at the same time
 
-4. Add to your `server.cfg`, starting the inventory **after** your framework (the `ensure` name must match your folder name):
+4. Select your framework with the `inventory:framework` convar in `server.cfg`. Supported values: `esx`, `qb` (QBCore), `qbx` (Qbox), `ox` (ox_core), `nd` (ND_Core). Default is `esx`:
+   ```
+   setr inventory:framework "qb"
+   ```
+
+5. Add to your `server.cfg`, starting the inventory **after** your framework (the `ensure` name must match your folder name):
    ```
    ensure oxmysql
    ensure ox_lib
-   ensure es_extended
+   ensure qb-core
    ensure lk_inventory
    ```
 
-5. Import the required database tables from `ox_inventory` if you haven't already
+6. Import the required database tables from `ox_inventory` if you haven't already
 
 ---
 
