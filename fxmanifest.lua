@@ -5,7 +5,7 @@ game 'gta5'
 name 'lk-inventory'
 provide 'ox_inventory'
 author 'Overextended / LK Inventory'
-version '2.47.5'
+version '2.48.0'
 repository 'https://github.com/overextended/ox_inventory'
 description 'LK Inventory - ox_inventory backend with Svelte NUI'
 

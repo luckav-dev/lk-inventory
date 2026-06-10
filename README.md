@@ -4,7 +4,7 @@
 
 A premium, fully redesigned inventory system for FiveM built on the [ox_inventory](https://github.com/overextended/ox_inventory) backend with a custom **Svelte + TypeScript** NUI frontend.
 
-[![Version](https://img.shields.io/badge/version-2.47.5-e42a2d?style=for-the-badge)](https://github.com/luckav-dev/lk-inventory)
+[![Version](https://img.shields.io/badge/version-2.48.0-e42a2d?style=for-the-badge)](https://github.com/luckav-dev/lk-inventory)
 [![FiveM](https://img.shields.io/badge/FiveM-ready-2cd63c?style=for-the-badge)](https://fivem.net)
 [![Lua](https://img.shields.io/badge/Lua_5.4-000080?style=for-the-badge&logo=lua&logoColor=white)](https://www.lua.org)
 [![Svelte](https://img.shields.io/badge/Svelte-FF3E00?style=for-the-badge&logo=svelte&logoColor=white)](https://svelte.dev)
