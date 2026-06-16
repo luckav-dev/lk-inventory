@@ -2,6 +2,7 @@
   import { lootAllDrops } from '../lib/actions';
   import { clampPercent, formatWeight } from '../lib/format';
   import { activePlayerSlot, getTotalWeight, isBusy, leftInventory, inventoryLayout } from '../stores/state';
+  import { t } from '../lib/i18n';
   import type { Inventory } from '../types';
   import InventorySlot from './InventorySlot.svelte';
   import ClothingPanel from './ClothingPanel.svelte';
@@ -17,7 +18,7 @@
   $: currentWeight = inventory.weight ?? getTotalWeight(inventory);
   $: maxWeight = inventory.maxWeight || 0;
   $: weightPercent = maxWeight ? (currentWeight / maxWeight) * 100 : 0;
-  $: label = inventory.label || (side === 'left' ? 'PLAYER' : inventory.type === 'drop' ? 'SUELO' : inventory.type?.toUpperCase() || 'TARGET');
+  $: label = inventory.label || (side === 'left' ? $t('ui_player', 'Player') : inventory.type === 'drop' ? $t('ui_ground', 'Ground') : inventory.type?.toUpperCase() || $t('ui_target', 'Target'));
   $: cash = $leftInventory.items.find((slot) => slot.name === 'money' || slot.name === 'cash')?.count || 0;
   $: bank = $leftInventory.items.find((slot) => slot.name === 'bank')?.count || 0;
   $: groupRank = inventory.groups ? Math.max(...Object.values(inventory.groups).map(Number).filter(Number.isFinite)) : undefined;
@@ -37,14 +38,14 @@
 
         {#if inventory.type === 'shop'}
           <div class="shop-currencies">
-            <span class="currency cash"><span class="lbl">EFECTIVO:</span> ${cash.toLocaleString('en-US')}</span>
-            <span class="currency bank"><span class="lbl">BANCO:</span> ${bank.toLocaleString('en-US')}</span>
+            <span class="currency cash"><span class="lbl">{$t('ui_cash', 'Cash').toUpperCase()}:</span> ${cash.toLocaleString('en-US')}</span>
+            <span class="currency bank"><span class="lbl">{$t('ui_bank', 'Bank').toUpperCase()}:</span> ${bank.toLocaleString('en-US')}</span>
           </div>
         {/if}
 
         {#if inventory.type === 'stash'}
           <div class="stash-badges">
-            <span class="badge shared-badge">COMPARTIDO</span>
+            <span class="badge shared-badge">{$t('ui_shared', 'Shared').toUpperCase()}</span>
             {#if groupRank !== undefined}
               <span class="badge rank-badge">LVL {groupRank}</span>
             {/if}
@@ -52,7 +53,7 @@
         {/if}
 
         {#if inventory.type === 'drop'}
-          <button class="loot-all-btn" type="button" on:click={lootAllDrops}>RECOGER TODO</button>
+          <button class="loot-all-btn" type="button" on:click={lootAllDrops}>{$t('ui_loot_all', 'Loot all')}</button>
         {/if}
       {/if}
     </div>
@@ -73,7 +74,7 @@
   <div class={isPlayer ? 'left-grid-row' : 'right-grid-row'}>
     {#if isPlayer && !isStacked}
       <ClothingPanel />
-      <div class="hot-bar" aria-label="Accesos rapidos">
+      <div class="hot-bar" aria-label={$t('ui_hotbar', 'Hotbar')}>
         {#each hotbarItems as hotbarItem (hotbarItem.slot)}
           <div class="hotbar-row-div">
             <div class={`hotbar-icon-badge ${$activePlayerSlot === hotbarItem.slot ? 'first active' : 'other'}`}><h3 class="slot-value">{hotbarItem.slot}</h3></div>

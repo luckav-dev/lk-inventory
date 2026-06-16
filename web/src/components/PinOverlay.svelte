@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fetchNui } from '../lib/nui';
   import { pinState, pinUnlocks, rightInventory } from '../stores/state';
+  import { t } from '../lib/i18n';
 
   let pin = '';
   let busy = false;
@@ -41,7 +42,7 @@
         pin = '';
       } else {
         pin = '';
-        pinState.update((state) => (state ? { ...state, error: typeof response === 'object' ? response.error : 'PIN incorrecto' } : state));
+        pinState.update((state) => (state ? { ...state, error: (typeof response === 'object' && response.error) || $t('ui_pin_incorrect', 'Incorrect PIN') } : state));
       }
     } finally {
       busy = false;
@@ -56,9 +57,9 @@
         <svg class="lock-icon animated" xmlns="http://www.w3.org/2000/svg" fill="var(--primary-red)" viewBox="0 0 24 24">
           <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
         </svg>
-        <h2>SISTEMA DE SEGURIDAD</h2>
-        <h1>ACCESO ENCRIPTADO</h1>
-        <p class="pin-sub">Introduce el codigo PIN de 4 digitos para autorizar el desbloqueo del almacen.</p>
+        <h2>{$t('ui_security_system', 'Security System')}</h2>
+        <h1>{$t('ui_encrypted_access', 'Encrypted Access')}</h1>
+        <p class="pin-sub">{$t('ui_pin_prompt', 'Enter the 4-digit PIN code to authorize unlocking the stash.')}</p>
       </div>
 
       <div class="pin-right-panel">

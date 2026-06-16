@@ -9,6 +9,7 @@ import {
   itemAmount,
   items,
   leftInventory,
+  locale,
   notifications,
   rightInventory,
   shiftPressed,
@@ -269,8 +270,51 @@ export function giveItem(slot: Slot) {
   if (slot.name) void fetchNui('giveItem', { slot: slot.slot, count: get(itemAmount) });
 }
 
-export function dropItem(slot: SlotWithItem) {
-  void performDrop({ inventory: InventoryType.PLAYER, item: { name: slot.name, slot: slot.slot } });
+export async function dropItem(slot: SlotWithItem) {
+  closeFloatingUi();
+
+  const left = clone(get(leftInventory));
+  const sourceSlot = left.items[slot.slot - 1];
+
+  if (!isSlotWithItem(sourceSlot, true)) return false;
+
+  const count = getMoveCount(sourceSlot, left);
+  const before = snapshot();
+
+  // Optimistically remove from the player inventory; the server confirms via a
+  // refreshSlots update and spawns the ground drop.
+  const pieceWeight = sourceSlot.weight / sourceSlot.count;
+  left.items[sourceSlot.slot - 1] =
+    sourceSlot.count - count > 0
+      ? { ...sourceSlot, count: sourceSlot.count - count, weight: pieceWeight * (sourceSlot.count - count) }
+      : { slot: sourceSlot.slot };
+
+  setInventories(left, get(rightInventory));
+  isBusy.set(true);
+
+  try {
+    // toType 'newdrop' tells the client to inject the player's coords and the
+    // server to create a ground drop (modules/inventory/server.lua dropItem).
+    const response = await validateMove({
+      fromSlot: sourceSlot.slot,
+      fromType: InventoryType.PLAYER,
+      toSlot: 1,
+      toType: 'newdrop',
+      count,
+    });
+
+    if (response === false) {
+      restore(before);
+      return false;
+    }
+
+    return true;
+  } catch {
+    restore(before);
+    return false;
+  } finally {
+    isBusy.set(false);
+  }
 }
 
 export function removeAmmo(slot: SlotWithItem) {
@@ -310,11 +354,16 @@ export async function lootAllDrops() {
     moved += 1;
   }
 
+  const strings = get(locale);
+  const lootLabel = moved
+    ? strings.ui_looted_all || 'Looted all'
+    : strings.ui_no_space || 'No space';
+
   notifications.update((current) => [
     ...current,
     {
       id: Date.now(),
-      item: { slot: 0, name: 'loot_all', count: moved, weight: 0, metadata: { label: moved ? 'Recogido todo' : 'Sin espacio' } },
+      item: { slot: 0, count: moved, weight: 0, metadata: { label: lootLabel } },
       kind: moved ? 'ui_added' : 'error',
       count: moved,
     },
