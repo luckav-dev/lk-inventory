@@ -12,4 +12,5 @@ else
     require 'client.sync'
     require 'client.drops'
     require 'client.stashes'
+    require 'client.shops'
 end

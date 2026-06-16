@@ -62,9 +62,12 @@ RegisterNUICallback('getItemData', function(name, cb)
     cb(lib.callback.await('lk_inv:getItemData', false, name))
 end)
 
+RegisterNUICallback('buyItem', function(data, cb)
+    cb(lib.callback.await('lk_inv:buyItem', false, data) or false)
+end)
+
 -- Features not yet implemented in this foundation: acknowledge cleanly so the
 -- UI never stalls.
-RegisterNUICallback('buyItem', function(_, cb) cb(false) end)
 RegisterNUICallback('craftItem', function(_, cb) cb(false) end)
 RegisterNUICallback('removeAmmo', function(_, cb) cb(false) end)
 RegisterNUICallback('removeComponent', function(_, cb) cb(false) end)

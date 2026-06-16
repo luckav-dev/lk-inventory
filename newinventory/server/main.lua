@@ -7,6 +7,7 @@ local Inventory = require 'server.inventory'
 local Transfer  = require 'server.transfer'
 local Drops     = require 'server.drops'
 local Stashes   = require 'server.stashes'
+local Shops     = require 'server.shops'
 
 -- source -> ownerId, and source -> currently open secondary inventory id
 local owners = {}
@@ -32,6 +33,31 @@ local function notify(source, name, kind, count)
     local def = Inventory.itemDef(name)
     TriggerClientEvent('lk_inv:notify', source,
         { { name = name, label = def and def.label or name }, kind, count })
+end
+
+--- Money is represented as the in-inventory `money` item.
+local function moneyCount(inv)
+    local total = 0
+    for _, slot in pairs(inv.items) do
+        if slot.name == 'money' then total = total + slot.count end
+    end
+    return total
+end
+
+--- Deduct `amount` of money across the player's money slots.
+--- @return integer[] changed slot ids
+local function removeMoney(inv, amount)
+    local changed = {}
+    for slotId, slot in pairs(inv.items) do
+        if amount <= 0 then break end
+        if slot.name == 'money' then
+            local take = math.min(slot.count, amount)
+            inv:removeFromSlot(slotId, take)
+            amount = amount - take
+            changed[#changed + 1] = slotId
+        end
+    end
+    return changed
 end
 
 --- Item registry in the shape the NUI expects.
@@ -154,8 +180,10 @@ lib.callback.register('lk_inv:open', function(source, secondaryId)
 
     local right
     if secondaryId then
-        -- A live container (drop) or a registered stash loaded on demand.
-        local secondary = Inventory.get(secondaryId) or Stashes.ensure(secondaryId)
+        -- A live container (drop), a registered stash, or a shop — loaded on demand.
+        local secondary = Inventory.get(secondaryId)
+            or Stashes.ensure(secondaryId)
+            or Shops.ensure(secondaryId)
         if secondary then
             openSecondary[source] = secondaryId
             secondary:addViewer(source)
@@ -209,6 +237,38 @@ lib.callback.register('lk_inv:swap', function(source, data)
         Drops.remove(from.id)
     end
 
+    return true
+end)
+
+lib.callback.register('lk_inv:buyItem', function(source, data)
+    if type(data) ~= 'table' then return false end
+
+    local shopId = openSecondary[source]
+    local shop = shopId and Inventory.get(shopId)
+    if not shop or shop.type ~= 'shop' then return false end
+
+    local shopSlot = shop.items[data.fromSlot]
+    if not shopSlot then return false end
+
+    local player = Inventory.get(source)
+    if not player then return false end
+
+    local count = math.max(1, math.floor(data.count or 1))
+    local price = (shopSlot.price or 0) * count
+    local buyWeight = Inventory.slotWeight(shopSlot.name, count)
+
+    if moneyCount(player) < price then return false end
+    if not player:canHold(buyWeight) then return false end
+
+    local moneyChanged = removeMoney(player, price)
+    local target = player:findStack(shopSlot.name, {}) or player:firstFree()
+    if not target then return false end
+
+    player:addItem(shopSlot.name, count, {})
+
+    pushSlots(player, moneyChanged)
+    pushSlots(player, { target })
+    notify(source, shopSlot.name, 'ui_added', count)
     return true
 end)
 

@@ -51,6 +51,12 @@ Open with `/inv` or the `TAB` keybind (configurable in `config/config.lua`).
 - **Item notifications** on add/remove/use (`lk_inv:notify`).
 - **Hotbar**: number keys **1–5** quick-use items while the inventory is closed.
 
+**Phase 3 — shops**
+- **Shops**: defined in `config/shops.lua` or via `exports.lk_inv:RegisterShop`,
+  opened by world points (press **E**) or `exports.lk_inv:OpenShop(id)`. Price
+  tags render in the UI; buying deducts the `money` item and adds the purchase,
+  with weight/funds validation server-side.
+
 ## NUI protocol
 The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 `setupInventory`, `refreshSlots`, `itemNotify`, … and answers the UI's
@@ -60,7 +66,8 @@ The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 ## Roadmap
 - **Phase 2 (cont.)** — trunk/glovebox, containers (bags inside bags), group/job
   access on stashes
-- **Phase 3** — shops, crafting benches, weapon attachments/ammo/durability
+- **Phase 3 (cont.)** — crafting benches, weapon attachments/ammo/durability,
+  account-money bridge (sync framework cash with the `money` item)
 - **Phase 4** — framework bridges parity (ESX/Qbox), anti-exploit hardening
 - **Advanced realism (planned)** — weight affecting stamina/movement, item
   degradation over time, dropped-item physics, inspect/3D item view, holstering
