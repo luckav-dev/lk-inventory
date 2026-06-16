@@ -21,7 +21,8 @@ return {
         label = 'Ammu-Nation',
         coords = vec3(22.0, -1107.3, 29.8),
         inventory = {
-            { name = 'WEAPON_PISTOL', price = 1500 },
+            -- Firearms are bank-only (when a framework provides accounts).
+            { name = 'WEAPON_PISTOL', price = 1500, currency = 'bank' },
             { name = 'ammo_9',        price = 2, count = 30 },
             { name = 'bandage',       price = 15 },
         },

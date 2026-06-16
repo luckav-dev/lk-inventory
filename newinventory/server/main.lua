@@ -334,10 +334,11 @@ lib.callback.register('lk_inv:buyItem', function(source, data)
     local price = (shopSlot.price or 0) * count
     local buyWeight = Inventory.slotWeight(shopSlot.name, count)
 
-    if not Money.canAfford(source, price) then return false end
+    local account = shopSlot.currency == 'bank' and 'bank' or 'cash'
+    if not Money.afford(source, price, account) then return false end
     if not player:canHold(buyWeight) then return false end
 
-    local ok, moneyChanged = Money.charge(source, price)
+    local ok, moneyChanged = Money.chargeAccount(source, price, account)
     if not ok then return false end
 
     local target = player:findStack(shopSlot.name, {}) or player:firstFree()

@@ -49,6 +49,7 @@ function Shops.ensure(id)
                 count = count,
                 weight = Inventory.slotWeight(entry.name, count),
                 price = entry.price or 0,
+                currency = entry.currency,
                 metadata = {},
             }
         end

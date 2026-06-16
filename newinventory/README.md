@@ -98,11 +98,22 @@ The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 `fetchNui` callbacks (`swapItems`, `useItem`, `giveItem`, `getItemData`, …). See
 `client/nui.lua`.
 
+**Phase 6 — accounts & tests**
+- **Bank purchases**: shop entries can set `currency = 'bank'` to charge the
+  framework bank account instead of cash.
+- **Unit tests**: pure inventory/transfer/container logic is covered by a Lua
+  test suite (`tests/run.lua`, 27 checks) runnable under stock Lua 5.4.
+- **Nested containers blocked**: a bag can't be placed inside another bag,
+  preventing weight-propagation cycles.
+
+> Note: container contents count toward the holder's total weight by design
+> (realism), so a bag organises space without expanding total capacity.
+
 ## Roadmap (remaining)
-- Live testing pass on a real server + automated tests
+- Live testing pass on a real server (FiveM-native paths: NUI, drops, weapons,
+  vehicles)
 - Dropped-item physics and an inspect / 3D item view
-- Container weight enforced against the holder's max (not just the bag's)
-- More framework money accounts (bank purchases) and ESX/Qbox parity polish
+- Recursive weight propagation for bags-in-bags (currently nesting is blocked)
 
 ## Exports
 ```lua

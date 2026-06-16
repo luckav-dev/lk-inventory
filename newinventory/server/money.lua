@@ -98,4 +98,29 @@ function Money.charge(source, amount)
     return true, changed
 end
 
+--- Account-aware affordability. `account` may be 'cash' or 'bank'. Bank only
+--- works with a framework; standalone always uses the cash/money item.
+function Money.afford(source, amount, account)
+    account = account or 'cash'
+    if account == 'bank' then
+        local bank = Framework.getMoney(source, 'bank')
+        return bank ~= nil and bank >= amount
+    end
+    return Money.canAfford(source, amount)
+end
+
+--- Account-aware charge. Returns ok plus changed slot ids (only the cash item
+--- ever changes the inventory display).
+--- @return boolean ok
+--- @return integer[] changed
+function Money.chargeAccount(source, amount, account)
+    account = account or 'cash'
+    if account == 'bank' then
+        if Framework.getMoney(source, 'bank') == nil then return false, {} end
+        if not Framework.removeMoney(source, 'bank', amount) then return false, {} end
+        return true, {}
+    end
+    return Money.charge(source, amount)
+end
+
 return Money

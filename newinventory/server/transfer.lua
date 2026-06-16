@@ -26,9 +26,12 @@ function Transfer.move(from, fromSlotId, to, toSlotId, count)
     local def = Inventory.itemDef(fromSlot.name)
     if not def then return false end
 
-    -- Never allow placing a container item inside the container it represents.
-    if fromSlot.metadata and fromSlot.metadata.container and fromSlot.metadata.container == to.id then
-        return false
+    -- Containers can't be nested inside another container (and never inside
+    -- themselves) — this prevents weight-propagation cycles / infinite recursion.
+    if fromSlot.metadata and fromSlot.metadata.container then
+        if to.type == 'container' or fromSlot.metadata.container == to.id then
+            return false
+        end
     end
 
     local moveWeight = Inventory.slotWeight(fromSlot.name, count)
