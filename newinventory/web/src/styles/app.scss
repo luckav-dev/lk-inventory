@@ -2936,3 +2936,71 @@ body:not(.is-browser) .debug-view-selector {
     margin: 0;
   }
 }
+
+/* ==========================================
+   BUILT-IN NOTIFICATION TOASTS
+   (our themed replacement for ox_lib's notify)
+   ========================================== */
+.lk-toasts {
+  position: fixed;
+  top: 2.2vh;
+  right: 2.2vh;
+  display: flex;
+  flex-direction: column;
+  gap: 1vh;
+  z-index: 100000;
+  pointer-events: none;
+  max-width: 30vh;
+}
+
+.lk-toast {
+  display: flex;
+  align-items: stretch;
+  gap: 1vh;
+  min-width: 22vh;
+  padding: 1.1vh 1.3vh;
+  background: linear-gradient(135deg, rgba(18, 18, 18, 0.97), rgba(8, 8, 8, 0.97));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 0;
+  border-radius: 0.7vh;
+  box-shadow: 0 0.6vh 2vh rgba(0, 0, 0, 0.55);
+  color: var(--text-white);
+  font-family: var(--font-medium);
+  overflow: hidden;
+  animation: lk-toast-in 0.22s ease;
+}
+
+@keyframes lk-toast-in {
+  from { opacity: 0; transform: translateX(20%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.lk-toast .lk-toast-accent {
+  flex: 0 0 0.35vh;
+  border-radius: 0.35vh;
+  background: var(--primary-red);
+  box-shadow: 0 0 0.8vh var(--primary-red-glow);
+}
+
+.lk-toast.success .lk-toast-accent { background: #16a34a; box-shadow: 0 0 0.8vh rgba(22, 163, 74, 0.5); }
+.lk-toast.error   .lk-toast-accent { background: var(--primary-red); }
+.lk-toast.inform  .lk-toast-accent { background: #2563eb; box-shadow: 0 0 0.8vh rgba(37, 99, 235, 0.5); }
+
+.lk-toast-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2vh;
+  justify-content: center;
+}
+
+.lk-toast-title {
+  font-family: var(--font-demibold);
+  text-transform: uppercase;
+  font-size: 1.55vh;
+  letter-spacing: 0.04em;
+}
+
+.lk-toast-desc {
+  font-size: 1.45vh;
+  color: var(--text-grey);
+}

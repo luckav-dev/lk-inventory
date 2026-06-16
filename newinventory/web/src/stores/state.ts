@@ -38,6 +38,19 @@ export const pinUnlocks = writable<Record<string, boolean>>({});
 export const pinState = writable<{ inventoryId: string | number; required: boolean; unlocked: boolean; error?: string } | null>(null);
 export const weaponModal = writable<{ item: SlotWithItem; slot: number } | null>(null);
 
+// Built-in notification toasts — our themed replacement for ox_lib's lib.notify
+// when ox_lib isn't on the server. Always visible (even with the inventory shut).
+export type Toast = { id: number; title?: string; description: string; type: string };
+export const toasts = writable<Toast[]>([]);
+let toastId = 1;
+export function pushToast(data: { title?: string; description: string; type?: string; duration?: number }) {
+  const id = toastId++;
+  toasts.update((current) => [...current, { id, title: data.title, description: data.description, type: data.type || 'inform' }].slice(-5));
+  window.setTimeout(() => {
+    toasts.update((current) => current.filter((t) => t.id !== id));
+  }, data.duration || 4000);
+}
+
 // Keep per-item totals (items[name].count) in sync with the player's holdings,
 // so crafting ingredient checks, hotbar counts and give amounts reflect what the
 // player actually carries. Driven purely from the left (player) inventory.

@@ -73,6 +73,11 @@ return {
         },
     },
 
+    -- Stealth pickpocketing of a nearby player (one item, fail alerts them).
+    pickpocket = {
+        chance = 0.55,
+    },
+
     -- Surprising realism: cargo weight in the trunk affects vehicle performance.
     cargo = {
         enabled    = true,
@@ -96,11 +101,12 @@ return {
     },
 
     -- Notifications. 'auto' uses ox_lib's lib.notify when ox_lib is running,
-    -- otherwise the native GTA feed. 'oxlib' / 'native' force one; 'custom'
-    -- forwards every notification to the `lk_inv:notification` event so the
-    -- server can route it to its own system (no collision with other scripts).
+    -- otherwise our own themed NUI notifications built into the inventory (never
+    -- the native GTA feed). 'oxlib'/'interface' force one; 'custom' forwards
+    -- every notification to the `lk_inv:notification` event so the server can
+    -- route it to its own system (no collision with other notification scripts).
     notify = {
-        provider = 'auto', -- auto | oxlib | native | custom
+        provider = 'auto', -- auto | oxlib | interface | custom
         position = 'top-right',
     },
 

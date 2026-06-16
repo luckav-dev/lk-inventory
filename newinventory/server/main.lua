@@ -48,9 +48,20 @@ local openSecondary = {}
 local pendingOpen = {}        -- source -> authorized secondary id
 local searchable = {}         -- source -> true when frisk-able (cuffed/hands up)
 local dumpsterSearched = {}   -- dumpster id -> last search time
+local pinUnlocked = {}        -- source -> { stashId -> true }
+
+local HIDDEN = { slots = 20, weight = 60000 } -- buried world-stash size
 
 local function authorize(source, id)
     pendingOpen[source] = id
+end
+
+--- Is this stash PIN-locked and not yet unlocked by `source`?
+local function stashLocked(source, inv)
+    if not inv or inv.type ~= 'stash' then return false end
+    local def = Stashes.getDef(inv.id)
+    if not def or not def.pin then return false end
+    return not (pinUnlocked[source] and pinUnlocked[source][inv.id])
 end
 
 --- May `source` open this secondary inventory right now?
@@ -58,7 +69,7 @@ local function isAuthorized(source, id, secondary)
     local t = secondary.type
     if t == 'player' then
         return id == source or pendingOpen[source] == id
-    elseif t == 'trunk' or t == 'glovebox' or t == 'dumpster' then
+    elseif t == 'trunk' or t == 'glovebox' or t == 'dumpster' or t == 'hidden' then
         return pendingOpen[source] == id
     elseif t == 'drop' then
         local coords = Drops.getCoords(id)
@@ -232,6 +243,7 @@ Framework.onDropped(function(source)
     openSecondary[source] = nil
     pendingOpen[source] = nil
     searchable[source] = nil
+    pinUnlocked[source] = nil
     Security.clear(source)
 end)
 
@@ -255,7 +267,7 @@ CreateThread(function()
         -- Unload idle, empty transient inventories (bags reload from the DB on
         -- next open; dumpsters regenerate loot after their cooldown).
         for id, inv in pairs(Inventory.all()) do
-            if (inv.type == 'container' or inv.type == 'dumpster')
+            if (inv.type == 'container' or inv.type == 'dumpster' or inv.type == 'hidden')
                 and not next(inv.viewers) and not next(inv.items) then
                 Inventory.remove(id)
             end
@@ -374,6 +386,9 @@ lib.callback.register('lk_inv:swap', function(source, data)
         or from.type == 'crafting' or to.type == 'crafting' then
         return false
     end
+
+    -- PIN-locked stashes must be unlocked before items can move.
+    if stashLocked(source, from) or stashLocked(source, to) then return false end
 
     local ok = Transfer.move(from, data.fromSlot, to, data.toSlot, data.count)
     if not ok then return false end
@@ -606,6 +621,120 @@ lib.callback.register('lk_inv:searchDumpster', function(source, coords)
     return id
 end)
 
+----------------------------------------------------------------------
+-- PIN-locked stashes (drives the existing PIN overlay in the UI)
+----------------------------------------------------------------------
+
+lib.callback.register('lk_inv:checkPin', function(source, stashId)
+    local def = Stashes.getDef(stashId)
+    local required = def and def.pin ~= nil
+    local unlocked = not required or (pinUnlocked[source] and pinUnlocked[source][stashId]) or false
+    return { required = required, unlocked = unlocked, label = def and def.label }
+end)
+
+lib.callback.register('lk_inv:unlockPin', function(source, data)
+    local stashId = type(data) == 'table' and data.stash or nil
+    local def = stashId and Stashes.getDef(stashId)
+    if not def or not def.pin then return { success = true } end
+
+    if tostring(data.pin or '') == tostring(def.pin) then
+        pinUnlocked[source] = pinUnlocked[source] or {}
+        pinUnlocked[source][stashId] = true
+        return { success = true }
+    end
+    return { success = false, error = 'Wrong PIN' }
+end)
+
+----------------------------------------------------------------------
+-- Hidden world stashes (buried caches): keyed by a world grid cell.
+----------------------------------------------------------------------
+
+local function cellId(coords)
+    return ('hidden_%d_%d_%d'):format(math.floor(coords.x), math.floor(coords.y), math.floor(coords.z))
+end
+
+local function ensureHidden(id)
+    local inv = Inventory.get(id)
+    if inv then return inv end
+    return Inventory.create(id, {
+        type = 'hidden', owner = id, label = 'Stash',
+        slots = HIDDEN.slots, maxWeight = HIDDEN.weight,
+        items = Db.load(id, 'hidden'), persist = true,
+    })
+end
+
+--- Bury/place a hidden stash at your position.
+lib.callback.register('lk_inv:hideStash', function(source, coords)
+    if type(coords) ~= 'vector3' and type(coords) ~= 'table' then return false end
+    local ped = GetPlayerPed(source)
+    local pos = vec3(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
+    if ped == 0 or #(GetEntityCoords(ped) - pos) > 3.0 then return false end
+
+    local id = cellId(pos)
+    local inv = ensureHidden(id)
+    inv.dirty = true
+    Db.save(id, 'hidden', {}) -- register the cell so it can be found later
+    authorize(source, id)
+    Logs.action('stash', source, 'placed a hidden stash')
+    return id
+end)
+
+--- Search the ground at your position for a hidden stash.
+lib.callback.register('lk_inv:searchGround', function(source, coords)
+    if type(coords) ~= 'vector3' and type(coords) ~= 'table' then return false end
+    local pos = vec3(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
+    local id = cellId(pos)
+
+    if not Inventory.get(id) and not Db.exists(id, 'hidden') then return false end
+
+    ensureHidden(id)
+    authorize(source, id)
+    return id
+end)
+
+----------------------------------------------------------------------
+-- Pickpocketing: a stealth chance to lift one item from a nearby player.
+----------------------------------------------------------------------
+
+lib.callback.register('lk_inv:pickpocket', function(source, targetId)
+    targetId = tonumber(targetId)
+    if not targetId or targetId == source then return false end
+    if not Security.allow(source, 'use') then return false end
+
+    local sPed, tPed = GetPlayerPed(source), GetPlayerPed(targetId)
+    if sPed == 0 or tPed == 0 then return false end
+    if #(GetEntityCoords(sPed) - GetEntityCoords(tPed)) > 1.8 then return false end
+
+    local thief, victim = Inventory.get(source), Inventory.get(targetId)
+    if not thief or not victim then return false end
+
+    -- Fail: alert the victim.
+    if math.random() > (Config.pickpocket.chance or 0.5) then
+        notifyClient(targetId, 'Someone just tried to pickpocket you!', 'error')
+        notifyClient(source, 'You failed and got noticed', 'error')
+        return false
+    end
+
+    -- Success: lift one random non-money item.
+    local candidates = {}
+    for slotId, slot in pairs(victim.items) do
+        if slot.name ~= 'money' then candidates[#candidates + 1] = slotId end
+    end
+    if #candidates == 0 then return false end
+
+    local pick = victim.items[candidates[math.random(#candidates)]]
+    if not thief:canHold(Inventory.slotWeight(pick.name, 1)) then return false end
+
+    thief:addItem(pick.name, 1, pick.metadata)
+    victim:removeFromSlot(pick.slot, 1)
+    pushSlots(thief, { thief:findStack(pick.name, pick.metadata) or pick.slot })
+    pushSlots(victim, { pick.slot })
+    pushWeight(source); pushWeight(targetId)
+    notifyClient(source, ('You lifted a %s'):format(pick.name), 'success')
+    Logs.action('frisk', source, ('pickpocketed %s from %s'):format(pick.name, targetId))
+    return true
+end)
+
 lib.callback.register('lk_inv:useItem', function(source, slotId)
     if not Security.allow(source, 'use') then return false end
 
@@ -822,6 +951,7 @@ RegisterNetEvent('lk_inv:closeInventory', function()
     end
 
     openSecondary[src] = nil
+    pinUnlocked[src] = nil -- re-lock PIN stashes on next open
 end)
 
 ----------------------------------------------------------------------

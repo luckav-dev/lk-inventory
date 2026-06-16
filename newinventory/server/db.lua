@@ -55,4 +55,11 @@ function Db.delete(ownerId, invType)
         { ownerId, invType or 'player' })
 end
 
+--- @return boolean exists
+function Db.exists(ownerId, invType)
+    return MySQL.scalar.await(
+        'SELECT 1 FROM lk_inventories WHERE owner_id = ? AND inv_type = ?',
+        { ownerId, invType or 'player' }) ~= nil
+end
+
 return Db

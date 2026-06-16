@@ -27,6 +27,26 @@ RegisterCommand('search', function()
     if id then Client.openInventory(id) end
 end, false)
 
+-- Stealth: try to pickpocket one item from the nearest player.
+RegisterCommand('pickpocket', function()
+    if Client.open then return end
+    local target = nearestPlayer()
+    if target then lib.callback.await('lk_inv:pickpocket', false, target) end
+end, false)
+
+-- Hidden world stashes: bury one at your feet, or search the ground for one.
+RegisterCommand('hidestash', function()
+    if Client.open then return end
+    local id = lib.callback.await('lk_inv:hideStash', false, GetEntityCoords(cache.ped))
+    if id then Client.openInventory(id) end
+end, false)
+
+RegisterCommand('searchground', function()
+    if Client.open then return end
+    local id = lib.callback.await('lk_inv:searchGround', false, GetEntityCoords(cache.ped))
+    if id then Client.openInventory(id) end
+end, false)
+
 local handsUp = false
 RegisterCommand('handsup', function()
     handsUp = not handsUp

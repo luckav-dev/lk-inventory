@@ -174,6 +174,19 @@ The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 > an inventory and never collides with your other scripts. Framework and
 > notification providers are auto-detected.
 
+**Phase 11 — built-in notifications & RP mechanics**
+- **Own notification UI** (`web/.../Toasts.svelte`): when ox_lib isn't on the
+  server, notifications render as our **own themed NUI toasts** built into the
+  inventory (never the native GTA feed). `config.notify.provider`: `auto`
+  (ox_lib → else our interface), `oxlib`, `interface`, or `custom` (forwards to
+  `lk_inv:notification`). Toasts show even with the inventory closed.
+- **PIN-locked stashes**: a stash with a `pin` drives the existing PIN overlay;
+  items can't move until it's unlocked (re-locks on close).
+- **Hidden world stashes**: `/hidestash` buries a cache at your feet (keyed by
+  world cell, survives restarts); `/searchground` finds one where you dig.
+- **Pickpocketing**: `/pickpocket` the nearest player for a chance to lift one
+  item — failing alerts the victim.
+
 **Phase 9 — frisking, dumpsters & open security**
 - **Frisk players** (`client/search.lua`, `lk_inv:searchPlayer`): `/search` the
   nearest player; the server allows it only when they're down (dead) or flagged
