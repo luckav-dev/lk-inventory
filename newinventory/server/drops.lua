@@ -7,13 +7,22 @@ local Utils     = require 'shared.utils'
 --- actual object for realism.
 local Drops = {}
 
---- id -> { coords, model, weapon }
+--- id -> { coords, model, weapon, owner }
 local meta = {}
 local seq = 0
+local totalCount = 0
+local perOwner = {} -- owner -> active drop count
 
 local function newId()
     seq = seq + 1
     return ('drop_%d_%d'):format(seq, math.random(1000, 9999))
+end
+
+--- Anti-dump: is this owner allowed to create another ground drop right now?
+function Drops.canCreate(owner)
+    if totalCount >= Config.drops.maxTotal then return false end
+    if owner and (perOwner[owner] or 0) >= Config.drops.maxPerPlayer then return false end
+    return true
 end
 
 --- Resolve the world model for a dropped item. Weapons render as the weapon
@@ -28,8 +37,9 @@ end
 
 --- Create a ground drop holding one slot of an item.
 --- @return string|nil dropId
-function Drops.create(coords, name, count, metadata)
+function Drops.create(coords, name, count, metadata, owner)
     if not coords or not name then return nil end
+    if not Drops.canCreate(owner) then return nil end
 
     local id = newId()
     local inv = Inventory.create(id, {
@@ -47,7 +57,10 @@ function Drops.create(coords, name, count, metadata)
         coords = coords,
         model  = render.model,
         weapon = render.weapon,
+        owner  = owner,
     }
+    totalCount = totalCount + 1
+    if owner then perOwner[owner] = (perOwner[owner] or 0) + 1 end
 
     TriggerClientEvent('lk_inv:spawnDrop', -1, id, coords, render)
     Utils.log('debug', 'drop created', id, name, count)
@@ -56,7 +69,12 @@ end
 
 --- Remove a drop entirely (e.g. once emptied).
 function Drops.remove(id)
-    if not meta[id] then return end
+    local m = meta[id]
+    if not m then return end
+    if m.owner and perOwner[m.owner] then
+        perOwner[m.owner] = math.max(0, perOwner[m.owner] - 1)
+    end
+    totalCount = math.max(0, totalCount - 1)
     meta[id] = nil
     Inventory.remove(id)
     TriggerClientEvent('lk_inv:removeDrop', -1, id)

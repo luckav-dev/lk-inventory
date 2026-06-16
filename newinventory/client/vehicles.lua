@@ -35,8 +35,14 @@ local function openVehicleStorage()
 
     if not NetworkGetEntityIsNetworked(veh) then return end
     local netId = NetworkGetNetworkIdFromEntity(veh)
+    local model = GetDisplayNameFromVehicleModel(GetEntityModel(veh))
 
-    local containerId = lib.callback.await('lk_inv:prepVehicle', false, { netId = netId, vtype = vtype })
+    local containerId = lib.callback.await('lk_inv:prepVehicle', false, {
+        netId = netId,
+        vtype = vtype,
+        class = GetVehicleClass(veh),
+        model = model and model:lower() or nil,
+    })
     if containerId then Client.openInventory(containerId) end
 end
 

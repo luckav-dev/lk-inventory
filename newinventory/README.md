@@ -5,8 +5,19 @@ is **not** a fork or reskin of ox_inventory — the Lua, data model, database
 schema and NUI protocol are all original. The web UI is the project's own Svelte
 interface, copied in unchanged.
 
-> Status: **foundation / Phase 1**. The core loop works end to end; advanced
-> systems are scaffolded on the roadmap below.
+> Status: feature-complete core; advanced systems built out across the phases
+> below. Pure logic is unit-tested; FiveM-native paths await a live-server pass.
+
+## Things this does that ox_inventory doesn't
+- **Real dropped objects** — a dropped weapon lies on the floor as the actual
+  gun; other items use a configured prop (ox shows a generic bag).
+- **Load affects you** — carrying near your weight limit slows you down.
+- **Cargo affects the vehicle** — a heavy trunk makes the vehicle accelerate
+  noticeably slower (engine torque scales with load).
+- **Trunk size by vehicle** — capacity is derived from the vehicle class/model:
+  trucks ≫ vans > 4x4 > cars > sports > bikes, with per-model overrides.
+- **Container weight is real** — a bag's contents count toward your total weight.
+- **Built-in anti-dump** — token-bucket rate limits + per-player/global drop caps.
 
 ## Why a separate resource
 It lives in its own folder (`lk_inv`) and its own database table
@@ -105,6 +116,16 @@ The backend speaks the exact contract the Svelte UI expects: it sends `init`,
   test suite (`tests/run.lua`, 27 checks) runnable under stock Lua 5.4.
 - **Nested containers blocked**: a bag can't be placed inside another bag,
   preventing weight-propagation cycles.
+
+**Phase 7 — vehicle realism & anti-dump**
+- **Class/model-based trunk & glovebox size** (`config/config.lua` → `vehicles`):
+  trucks/industrial carry the most, then utility, vans, SUVs, 4x4, muscle,
+  cars (default), sports, super, bikes; per-model overrides supported.
+- **Cargo handling penalty**: trunk load reduces engine torque up to −40% at
+  full (`client/cargo.lua`, server `lk_inv:trunkLoad`).
+- **Anti-dump / anti-dupe**: per-player token-bucket rate limits on swap/use/
+  drop (`server/security.lua`), plus per-player and global active-drop caps.
+  Suspicious actions fire `lk_inv:exploit` for external anti-cheats.
 
 > Note: container contents count toward the holder's total weight by design
 > (realism), so a bag organises space without expanding total capacity.

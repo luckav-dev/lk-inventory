@@ -10,6 +10,16 @@ local Stashes   = require 'server.stashes'
 local Shops     = require 'server.shops'
 local Crafting  = require 'server.crafting'
 local Money     = require 'server.money'
+local Security  = require 'server.security'
+
+--- Trunk/glovebox capacity for a vehicle, by model override → class → default.
+local function vehicleSpace(class, model, vtype)
+    local cfg = Config.vehicles
+    local space = (model and cfg.modelSpace[model]) or cfg.classSpace[class] or cfg.default
+    local s = (vtype == 'glovebox' and (space.glove or cfg.default.glove))
+        or (space.trunk or cfg.default.trunk)
+    return s.slots, s.weight
+end
 
 --- True if the player meets any of the required group/grade pairs.
 local function hasAnyGroup(source, groups)
@@ -168,6 +178,7 @@ Framework.onDropped(function(source)
     Inventory.remove(source)
     owners[source] = nil
     openSecondary[source] = nil
+    Security.clear(source)
 end)
 
 --- Periodic flush of dirty inventories (players and persistent stashes).
@@ -270,6 +281,12 @@ end)
 lib.callback.register('lk_inv:swap', function(source, data)
     if type(data) ~= 'table' then return false end
 
+    local action = data.toType == 'newdrop' and 'drop' or 'swap'
+    if not Security.allow(source, action) then
+        Security.flag(source, action .. ' rate exceeded')
+        return false
+    end
+
     -- Drop to ground: client provides validated player coords.
     if data.toType == 'newdrop' then
         local from = Inventory.get(source)
@@ -277,7 +294,7 @@ lib.callback.register('lk_inv:swap', function(source, data)
         if not slot or not data.coords then return false end
 
         local count = math.min(data.count or slot.count, slot.count)
-        local dropId = Drops.create(data.coords, slot.name, count, slot.metadata)
+        local dropId = Drops.create(data.coords, slot.name, count, slot.metadata, source)
         if not dropId then return false end
 
         from:removeFromSlot(data.fromSlot, count)
@@ -422,12 +439,16 @@ lib.callback.register('lk_inv:prepVehicle', function(source, data)
     local id = ('%s_%s'):format(vtype, plate)
 
     if not Inventory.get(id) then
+        -- Size depends on the vehicle (class/model sent by the client).
+        local slots, weight = vehicleSpace(tonumber(data.class) or -1,
+            data.model and tostring(data.model):lower() or nil, vtype)
+
         Inventory.create(id, {
             type = vtype,
             owner = id,
             label = ('%s %s'):format(vtype == 'trunk' and 'Trunk' or 'Glovebox', plate),
-            slots = vtype == 'trunk' and Config.vehicles.trunkSlots or Config.vehicles.gloveSlots,
-            maxWeight = vtype == 'trunk' and Config.vehicles.trunkWeight or Config.vehicles.gloveWeight,
+            slots = slots,
+            maxWeight = weight,
             items = Db.load(id, vtype),
             persist = true,
         })
@@ -436,7 +457,18 @@ lib.callback.register('lk_inv:prepVehicle', function(source, data)
     return id
 end)
 
+--- Current cargo load (0..1) of a vehicle's trunk, for the handling penalty.
+--- Does not force-load the trunk (returns 0 when it hasn't been opened).
+lib.callback.register('lk_inv:trunkLoad', function(source, plate)
+    if not plate then return 0 end
+    local inv = Inventory.get(('trunk_%s'):format(tostring(plate):gsub('%s+$', '')))
+    if not inv or inv.maxWeight <= 0 then return 0 end
+    return math.min(inv.weight / inv.maxWeight, 1.0)
+end)
+
 lib.callback.register('lk_inv:useItem', function(source, slotId)
+    if not Security.allow(source, 'use') then return false end
+
     local inv = Inventory.get(source)
     local slot = inv and inv.items[slotId]
     if not slot then return false end
