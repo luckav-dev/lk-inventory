@@ -79,20 +79,30 @@ Open with `/inv` or the `TAB` keybind (configurable in `config/config.lua`).
 - **Containers**: items with a `container` definition (e.g. the `bag`) open their
   own persistent inventory; nesting a container in itself is blocked.
 
+**Phase 5 — realism & hardening**
+- **Container weight propagation**: a bag's slot weight includes its contents and
+  counts toward the holder's total.
+- **Give cash**: giving the `money` item transfers framework account cash
+  between players.
+- **Weight slows movement**: past 85% of max weight the ped's move rate scales
+  down (up to −25%). (`client/weight.lua`)
+- **Perishable items**: items with `degrade` carry an expiry the UI counts down.
+- **Anti-exploit**: drags from/to shops & crafting benches are rejected
+  (purchases go through buy/craft); secondary containers must be the one the
+  player has open.
+- **Idle container unloading** + `exports.lk_inv:DeleteContainer(id)`.
+
 ## NUI protocol
 The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 `setupInventory`, `refreshSlots`, `itemNotify`, … and answers the UI's
 `fetchNui` callbacks (`swapItems`, `useItem`, `giveItem`, `getItemData`, …). See
 `client/nui.lua`.
 
-## Roadmap
-- Container **weight propagation** (a bag's weight includes its contents)
-- Account-money **give** flow (transfer cash between players)
-- Anti-exploit hardening pass + automated tests
-- Orphaned-container cleanup (when a bag item is destroyed)
-- **Advanced realism (planned)** — weight affecting stamina/movement, item
-  degradation over time, dropped-item physics, inspect/3D item view, holstering
-  visuals
+## Roadmap (remaining)
+- Live testing pass on a real server + automated tests
+- Dropped-item physics and an inspect / 3D item view
+- Container weight enforced against the holder's max (not just the bag's)
+- More framework money accounts (bank purchases) and ESX/Qbox parity polish
 
 ## Exports
 ```lua

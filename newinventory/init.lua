@@ -16,4 +16,5 @@ else
     require 'client.shops'
     require 'client.vehicles'
     require 'client.crafting'
+    require 'client.weight'
 end

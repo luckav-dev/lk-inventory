@@ -131,11 +131,21 @@ function Inventory:findStack(name, metadata)
     return nil
 end
 
---- Recompute total weight from scratch.
+--- Effective weight of a slot, including the contents of a container item.
+function Inventory:effectiveWeight(slot)
+    local w = slot.weight or 0
+    if slot.metadata and slot.metadata.container then
+        local c = store[slot.metadata.container]
+        if c then w = slotWeight(slot.name, slot.count) + c.weight end
+    end
+    return w
+end
+
+--- Recompute total weight from scratch (container-aware).
 function Inventory:recalcWeight()
     local total = 0
     for _, slot in pairs(self.items) do
-        total = total + (slot.weight or 0)
+        total = total + self:effectiveWeight(slot)
     end
     self.weight = total
     return total
@@ -162,6 +172,11 @@ function Inventory:addItem(name, count, metadata)
         if metadata.ammo == nil then metadata.ammo = 0 end
     elseif def.container and not metadata.container then
         metadata.container = uid('cont')
+    end
+
+    -- Perishable items: store an expiry timestamp the UI counts down from.
+    if def.degrade and metadata.durability == nil then
+        metadata.durability = os.time() + def.degrade * 60
     end
 
     local addWeight = slotWeight(name, count)
@@ -216,10 +231,14 @@ end
 
 --- Refresh payload for a single slot (empty slots send just the slot number).
 function Inventory:slotPayload(slotId)
-    return {
-        item = self.items[slotId] or { slot = slotId },
-        inventory = self:clientKey(),
-    }
+    local slot = self.items[slotId]
+    if slot and slot.metadata and slot.metadata.container and store[slot.metadata.container] then
+        local copy = {}
+        for k, v in pairs(slot) do copy[k] = v end
+        copy.weight = self:effectiveWeight(slot)
+        return { item = copy, inventory = self:clientKey() }
+    end
+    return { item = slot or { slot = slotId }, inventory = self:clientKey() }
 end
 
 function Inventory:addViewer(source)
@@ -230,11 +249,19 @@ function Inventory:removeViewer(source)
     self.viewers[source] = nil
 end
 
---- Serialise to the shape the NUI expects.
+--- Serialise to the shape the NUI expects. Container slots report their full
+--- weight (base + contents) for display.
 function Inventory:toClient()
     local items = {}
     for _, slot in pairs(self.items) do
-        items[#items + 1] = slot
+        if slot.metadata and slot.metadata.container and store[slot.metadata.container] then
+            local copy = {}
+            for k, v in pairs(slot) do copy[k] = v end
+            copy.weight = self:effectiveWeight(slot)
+            items[#items + 1] = copy
+        else
+            items[#items + 1] = slot
+        end
     end
 
     return {

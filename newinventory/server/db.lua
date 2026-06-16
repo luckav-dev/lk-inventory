@@ -48,4 +48,11 @@ function Db.save(ownerId, invType, slots)
     )
 end
 
+--- @param ownerId string
+--- @param invType string?
+function Db.delete(ownerId, invType)
+    MySQL.prepare('DELETE FROM lk_inventories WHERE owner_id = ? AND inv_type = ?',
+        { ownerId, invType or 'player' })
+end
+
 return Db

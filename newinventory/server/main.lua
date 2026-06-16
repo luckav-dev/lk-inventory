@@ -39,6 +39,35 @@ local function pushSlots(inv, slotIds)
     end
 end
 
+--- Send the player's current weight ratio (for the movement penalty).
+local function pushWeight(source)
+    local inv = Inventory.get(source)
+    if not inv then return end
+    local ratio = inv.maxWeight > 0 and (inv.weight / inv.maxWeight) or 0
+    TriggerClientEvent('lk_inv:weight', source, ratio)
+end
+
+--- When a container's contents change, refresh the holder's container slot and
+--- recompute their total weight (container weight propagation).
+local function updateContainerParent(containerId)
+    if not Inventory.get(containerId) then return end
+    for src, secId in pairs(openSecondary) do
+        if secId == containerId then
+            local pInv = Inventory.get(src)
+            if pInv then
+                for slotId, slot in pairs(pInv.items) do
+                    if slot.metadata and slot.metadata.container == containerId then
+                        pInv:recalcWeight()
+                        pInv.dirty = true
+                        pushSlots(pInv, { slotId })
+                        pushWeight(src)
+                    end
+                end
+            end
+        end
+    end
+end
+
 --- Fire a slide-in item notification on a client. kind: 'ui_added'|'ui_removed'.
 local function notify(source, name, kind, count)
     if not source then return end
@@ -157,6 +186,14 @@ CreateThread(function()
                 inv.dirty = false
             end
         end
+
+        -- Unload idle containers (no viewers, empty) to free memory; they reload
+        -- from the database the next time the bag is opened.
+        for id, inv in pairs(Inventory.all()) do
+            if inv.type == 'container' and not next(inv.viewers) and not next(inv.items) then
+                Inventory.remove(id)
+            end
+        end
     end
 end)
 
@@ -220,6 +257,8 @@ lib.callback.register('lk_inv:open', function(source, secondaryId)
         openSecondary[source] = nil
     end
 
+    pushWeight(source)
+
     return {
         items = clientItems,
         imagepath = ('nui://%s/web/images'):format(GetCurrentResourceName()),
@@ -243,6 +282,7 @@ lib.callback.register('lk_inv:swap', function(source, data)
 
         from:removeFromSlot(data.fromSlot, count)
         pushSlots(from, { data.fromSlot })
+        pushWeight(source)
         return true
     end
 
@@ -250,12 +290,24 @@ lib.callback.register('lk_inv:swap', function(source, data)
     local to   = resolve(source, data.toType)
     if not from or not to then return false end
 
+    -- Anti-exploit: read-only containers are handled by buy/craft, not drag.
+    if from.type == 'shop' or to.type == 'shop'
+        or from.type == 'crafting' or to.type == 'crafting' then
+        return false
+    end
+
     local ok = Transfer.move(from, data.fromSlot, to, data.toSlot, data.count)
     if not ok then return false end
 
     -- Keep every viewer of both containers in sync.
     pushSlots(from, { data.fromSlot })
     pushSlots(to, { data.toSlot })
+
+    -- Container weight propagation to the holding inventory.
+    if from.type == 'container' then updateContainerParent(from.id) end
+    if to.type == 'container' then updateContainerParent(to.id) end
+
+    pushWeight(source)
 
     -- Clean up emptied drops
     if from.type == 'drop' and not next(from.items) then
@@ -295,6 +347,7 @@ lib.callback.register('lk_inv:buyItem', function(source, data)
 
     pushSlots(player, moneyChanged)
     pushSlots(player, { target })
+    pushWeight(source)
     notify(source, shopSlot.name, 'ui_added', count)
     return true
 end)
@@ -341,6 +394,7 @@ lib.callback.register('lk_inv:craftItem', function(source, data)
     changed[#changed + 1] = target
 
     pushSlots(player, changed)
+    pushWeight(source)
     notify(source, recipe.name, 'ui_added', resultCount)
     return true
 end)
@@ -421,6 +475,7 @@ lib.callback.register('lk_inv:useItem', function(source, slotId)
     TriggerEvent('lk_inv:itemUsed', source, slot.name, slot.metadata)
     inv:removeFromSlot(slotId, 1)
     pushSlots(inv, { slotId })
+    pushWeight(source)
     notify(source, slot.name, 'ui_removed', 1)
     return true
 end)
@@ -508,8 +563,28 @@ lib.callback.register('lk_inv:give', function(source, data)
     if not from or not to or not slot then return false end
 
     local count = math.min(data.count or 1, slot.count)
+    if count < 1 then return false end
+
+    -- Cash uses the framework account when available.
+    if slot.name == 'money' and Money.useFramework(source) then
+        local amount = math.min(count, Money.get(source))
+        if amount <= 0 then return false end
+        if not Framework.removeMoney(source, 'cash', amount) then return false end
+        Framework.addMoney(target, 'cash', amount)
+        pushSlots(from, Money.syncItem(source))
+        pushSlots(to, Money.syncItem(target))
+        return true
+    end
+
+    local before = to:findStack(slot.name, slot.metadata) or to:firstFree()
     if not to:addItem(slot.name, count, slot.metadata) then return false end
     from:removeFromSlot(data.slot, count)
+
+    pushSlots(from, { data.slot })
+    if before then pushSlots(to, { before }) end
+    pushWeight(source)
+    pushWeight(target)
+    notify(target, slot.name, 'ui_added', count)
     return true
 end)
 
@@ -565,4 +640,15 @@ end)
 
 exports('CreateDrop', function(coords, name, count, metadata)
     return Drops.create(coords, name, count, metadata)
+end)
+
+exports('DeleteContainer', function(containerId)
+    if not containerId then return false end
+    Inventory.remove(containerId)
+    Db.delete(containerId, 'container')
+    return true
+end)
+
+exports('GetMoney', function(source)
+    return Money.get(source)
 end)
