@@ -1,0 +1,211 @@
+local Config = require 'config.config'
+local Items  = require 'config.items'
+local Utils  = require 'shared.utils'
+
+--- Core inventory model. An Inventory is a container of numbered slots; the
+--- server is always the authority. Player inventories are keyed by source,
+--- other containers (drops, stashes) by their string id.
+---@class Inventory
+---@field id string|number
+---@field type string
+---@field owner string|nil   persistence key (citizenid, stash id, ...)
+---@field label string
+---@field slots integer
+---@field maxWeight integer
+---@field weight integer
+---@field items table<integer, table>
+---@field dirty boolean
+local Inventory = {}
+Inventory.__index = Inventory
+
+--- Live inventories indexed by id.
+local store = {}
+
+--- @param name string
+--- @return table|nil item definition
+local function itemDef(name)
+    if not name then return nil end
+    return Items[name]
+end
+Inventory.itemDef = itemDef
+
+--- Weight of a single slot (definition weight * count).
+local function slotWeight(name, count)
+    local def = itemDef(name)
+    if not def then return 0 end
+    return (def.weight or 0) * (count or 1)
+end
+Inventory.slotWeight = slotWeight
+
+--- Build a fresh, validated slot list from raw stored data, dropping any
+--- entries that reference unknown items.
+local function sanitize(rawItems)
+    local items, total = {}, 0
+
+    for _, slot in pairs(rawItems or {}) do
+        if type(slot) == 'table' and slot.name and slot.slot then
+            local def = itemDef(slot.name)
+            if def then
+                local count = Utils.posInt(slot.count)
+                if count > 0 then
+                    local weight = slotWeight(slot.name, count)
+                    items[slot.slot] = {
+                        slot = slot.slot,
+                        name = slot.name,
+                        count = count,
+                        weight = weight,
+                        metadata = slot.metadata or {},
+                    }
+                    total = total + weight
+                end
+            end
+        end
+    end
+
+    return items, total
+end
+
+--- Create (or replace) an inventory and register it in the store.
+function Inventory.create(id, opts)
+    opts = opts or {}
+    local items, weight = sanitize(opts.items)
+
+    local inv = setmetatable({
+        id        = id,
+        type      = opts.type or 'player',
+        owner     = opts.owner,
+        label     = opts.label or tostring(id),
+        slots     = opts.slots or Config.playerSlots,
+        maxWeight = opts.maxWeight or Config.playerWeight,
+        weight    = weight,
+        items     = items,
+        dirty     = false,
+    }, Inventory)
+
+    store[id] = inv
+    return inv
+end
+
+--- @return Inventory|nil
+function Inventory.get(id)
+    return store[id]
+end
+
+function Inventory.remove(id)
+    store[id] = nil
+end
+
+function Inventory.all()
+    return store
+end
+
+--- First free slot number, or nil when full.
+function Inventory:firstFree()
+    for i = 1, self.slots do
+        if not self.items[i] then return i end
+    end
+    return nil
+end
+
+--- Find a stackable slot for an item with matching metadata.
+function Inventory:findStack(name, metadata)
+    local def = itemDef(name)
+    if not def or not def.stack then return nil end
+
+    for i = 1, self.slots do
+        local slot = self.items[i]
+        if slot and slot.name == name
+            and json.encode(slot.metadata or {}) == json.encode(metadata or {}) then
+            return i
+        end
+    end
+    return nil
+end
+
+--- Recompute total weight from scratch.
+function Inventory:recalcWeight()
+    local total = 0
+    for _, slot in pairs(self.items) do
+        total = total + (slot.weight or 0)
+    end
+    self.weight = total
+    return total
+end
+
+--- @return boolean ok whether `extra` grams still fit
+function Inventory:canHold(extra)
+    return (self.weight + (extra or 0)) <= self.maxWeight
+end
+
+--- Add an item, honouring stacking and weight limits.
+--- @return boolean success
+function Inventory:addItem(name, count, metadata)
+    local def = itemDef(name)
+    if not def then return false end
+
+    count = Utils.posInt(count)
+    if count == 0 then count = 1 end
+
+    local addWeight = slotWeight(name, count)
+    if not self:canHold(addWeight) then return false end
+
+    local target = self:findStack(name, metadata) or self:firstFree()
+    if not target then return false end
+
+    local existing = self.items[target]
+    if existing then
+        existing.count = existing.count + count
+        existing.weight = slotWeight(name, existing.count)
+    else
+        self.items[target] = {
+            slot = target,
+            name = name,
+            count = count,
+            weight = addWeight,
+            metadata = metadata or {},
+        }
+    end
+
+    self:recalcWeight()
+    self.dirty = true
+    return true
+end
+
+--- Remove `count` from a specific slot (or the item by name across slots).
+--- @return boolean success
+function Inventory:removeFromSlot(slotId, count)
+    local slot = self.items[slotId]
+    if not slot then return false end
+
+    count = Utils.posInt(count)
+    if count == 0 or count >= slot.count then
+        self.items[slotId] = nil
+    else
+        slot.count = slot.count - count
+        slot.weight = slotWeight(slot.name, slot.count)
+    end
+
+    self:recalcWeight()
+    self.dirty = true
+    return true
+end
+
+--- Serialise to the shape the NUI expects.
+function Inventory:toClient()
+    local items = {}
+    for _, slot in pairs(self.items) do
+        items[#items + 1] = slot
+    end
+
+    return {
+        id        = self.id,
+        type      = self.type,
+        label     = self.label,
+        slots     = self.slots,
+        maxWeight = self.maxWeight,
+        weight    = self.weight,
+        items     = items,
+    }
+end
+
+return Inventory
