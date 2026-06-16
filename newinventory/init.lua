@@ -8,6 +8,7 @@ if IsDuplicityVersion() then
     require 'server.main'
 else
     require 'client.main'
+    require 'client.weapons'
     require 'client.nui'
     require 'client.sync'
     require 'client.drops'

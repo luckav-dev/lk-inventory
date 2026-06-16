@@ -9,6 +9,17 @@ local Drops     = require 'server.drops'
 local Stashes   = require 'server.stashes'
 local Shops     = require 'server.shops'
 local Crafting  = require 'server.crafting'
+local Money     = require 'server.money'
+
+--- True if the player meets any of the required group/grade pairs.
+local function hasAnyGroup(source, groups)
+    local pg = Framework.getGroups(source) or {}
+    for name, minGrade in pairs(groups) do
+        local g = pg[name]
+        if g ~= nil and g >= (minGrade or 0) then return true end
+    end
+    return false
+end
 
 -- source -> ownerId, and source -> currently open secondary inventory id
 local owners = {}
@@ -179,13 +190,25 @@ lib.callback.register('lk_inv:open', function(source, secondaryId)
 
     inv:addViewer(source)
 
+    -- Keep the money item in sync with the framework account for display.
+    Money.syncItem(source)
+
     local right
     if secondaryId then
-        -- A live container (drop), a registered stash, or a shop — loaded on demand.
+        -- A live container (drop/bag), a registered stash, a shop, or a bench.
         local secondary = Inventory.get(secondaryId)
             or Stashes.ensure(secondaryId)
             or Shops.ensure(secondaryId)
             or Crafting.ensure(secondaryId)
+
+        -- Stash job/group access control.
+        if secondary and secondary.type == 'stash' then
+            local def = Stashes.getDef(secondaryId)
+            if def and def.groups and not hasAnyGroup(source, def.groups) then
+                secondary = nil
+            end
+        end
+
         if secondary then
             openSecondary[source] = secondaryId
             secondary:addViewer(source)
@@ -259,10 +282,12 @@ lib.callback.register('lk_inv:buyItem', function(source, data)
     local price = (shopSlot.price or 0) * count
     local buyWeight = Inventory.slotWeight(shopSlot.name, count)
 
-    if itemCount(player, 'money') < price then return false end
+    if not Money.canAfford(source, price) then return false end
     if not player:canHold(buyWeight) then return false end
 
-    local moneyChanged = removeByName(player, 'money', price)
+    local ok, moneyChanged = Money.charge(source, price)
+    if not ok then return false end
+
     local target = player:findStack(shopSlot.name, {}) or player:firstFree()
     if not target then return false end
 
@@ -364,17 +389,108 @@ lib.callback.register('lk_inv:useItem', function(source, slotId)
     local def = Inventory.itemDef(slot.name)
     if not def or not def.usable then return false end
 
-    -- Let other resources react to item usage.
-    TriggerEvent('lk_inv:itemUsed', source, slot.name, slot.metadata)
-
-    -- Consumables (non-weapon) decrement by one on use.
-    if not def.weapon then
-        inv:removeFromSlot(slotId, 1)
-        pushSlots(inv, { slotId })
-        notify(source, slot.name, 'ui_removed', 1)
+    -- Weapon: client equips/holsters it.
+    if def.weapon then
+        return { weapon = { slot = slotId, name = slot.name, metadata = slot.metadata or {} } }
     end
 
+    -- Component: client attaches it to the equipped weapon.
+    if def.component then
+        return { component = { slot = slotId, name = slot.name } }
+    end
+
+    -- Container (bag): open its own inventory, loading it on demand.
+    if def.container then
+        slot.metadata = slot.metadata or {}
+        if not slot.metadata.container then
+            slot.metadata.container = ('cont_%d_%d'):format(slotId, math.random(10000, 99999))
+            inv.dirty = true
+        end
+        local cid = slot.metadata.container
+        if not Inventory.get(cid) then
+            Inventory.create(cid, {
+                type = 'container', owner = cid, label = def.label or 'Container',
+                slots = def.container.slots or 10, maxWeight = def.container.weight or 20000,
+                items = Db.load(cid, 'container'), persist = true,
+            })
+        end
+        return { open = cid }
+    end
+
+    -- Consumable: notify listeners and decrement by one.
+    TriggerEvent('lk_inv:itemUsed', source, slot.name, slot.metadata)
+    inv:removeFromSlot(slotId, 1)
+    pushSlots(inv, { slotId })
+    notify(source, slot.name, 'ui_removed', 1)
     return true
+end)
+
+--- Persist a weapon's live state (ammo/durability/components) from the client.
+RegisterNetEvent('lk_inv:syncWeapon', function(slotId, data)
+    local src = source
+    local inv = Inventory.get(src)
+    local slot = inv and inv.items[slotId]
+    if not slot or type(data) ~= 'table' then return end
+
+    local def = Inventory.itemDef(slot.name)
+    if not def or not def.weapon then return end
+
+    slot.metadata = slot.metadata or {}
+    if data.ammo ~= nil then slot.metadata.ammo = data.ammo end
+    if data.durability ~= nil then slot.metadata.durability = data.durability end
+    if data.components ~= nil then slot.metadata.components = data.components end
+    inv.dirty = true
+    pushSlots(inv, { slotId })
+end)
+
+--- Attach a component item to a weapon. Returns the component name to apply.
+lib.callback.register('lk_inv:attachComponent', function(source, data)
+    if type(data) ~= 'table' then return false end
+    local inv = Inventory.get(source)
+    if not inv then return false end
+
+    local weapon = inv.items[data.weaponSlot]
+    local comp = inv.items[data.componentSlot]
+    if not weapon or not comp then return false end
+
+    local wdef = Inventory.itemDef(weapon.name)
+    local cdef = Inventory.itemDef(comp.name)
+    if not wdef or not wdef.weapon or not cdef or not cdef.component then return false end
+
+    weapon.metadata = weapon.metadata or {}
+    weapon.metadata.components = weapon.metadata.components or {}
+    weapon.metadata.components[#weapon.metadata.components + 1] = comp.name
+
+    inv:removeFromSlot(data.componentSlot, 1)
+    inv.dirty = true
+    pushSlots(inv, { data.weaponSlot, data.componentSlot })
+    return comp.name
+end)
+
+--- Remove a component from a weapon and return the item to the inventory.
+lib.callback.register('lk_inv:removeComponent', function(source, data)
+    if type(data) ~= 'table' then return false end
+    local inv = Inventory.get(source)
+    if not inv then return false end
+
+    local weapon = inv.items[data.slot]
+    if not weapon or not weapon.metadata or not weapon.metadata.components then return false end
+
+    local comps = weapon.metadata.components
+    local removed
+    for i = #comps, 1, -1 do
+        if comps[i] == data.component then
+            table.remove(comps, i)
+            removed = true
+            break
+        end
+    end
+    if not removed then return false end
+
+    inv:addItem(data.component, 1, {})
+    inv.dirty = true
+    pushSlots(inv, { data.slot })
+    return data.component
 end)
 
 lib.callback.register('lk_inv:getItemData', function(_, name)

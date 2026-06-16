@@ -58,4 +58,25 @@ return {
         label = '9mm Rounds', weight = 4, stack = true, close = false, usable = false,
         ammo = true, ground = 'prop_box_ammo04a',
     },
+
+    -- Weapon attachments (used while a weapon is equipped to attach them).
+    at_flashlight = {
+        label = 'Weapon Flashlight', weight = 120, stack = true, close = true, usable = true,
+        component = true, type = 'flashlight',
+        client = { component = { 'COMPONENT_AT_PI_FLSH' } },
+        ground = 'prop_cs_torch_01',
+    },
+    at_suppressor = {
+        label = 'Suppressor', weight = 150, stack = true, close = true, usable = true,
+        component = true, type = 'muzzle',
+        client = { component = { 'COMPONENT_AT_PI_SUPP_02' } },
+        ground = 'prop_box_ammo04a',
+    },
+
+    -- Container item: open it to access its own inventory (bag-in-bag).
+    bag = {
+        label = 'Backpack', weight = 1000, stack = false, close = true, usable = true,
+        container = { slots = 20, weight = 40000 },
+        ground = 'prop_cs_heist_bag_strap_01',
+    },
 }

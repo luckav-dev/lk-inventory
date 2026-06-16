@@ -66,6 +66,19 @@ Open with `/inv` or the `TAB` keybind (configurable in `config/config.lua`).
   duration and a live "can craft" check; the server validates ingredients +
   weight, consumes them and grants the result.
 
+**Phase 4 — framework, weapons, containers**
+- **Account money bridge**: when QBCore/ESX is present, the framework cash
+  account is the source of truth and the in-inventory `money` item mirrors it;
+  shops charge real money. Standalone falls back to a plain `money` item.
+  (`server/money.lua`, `server/framework.lua`)
+- **Stash access control**: stashes can require a job/gang grade via `groups`.
+- **Weapons**: use a weapon to equip/holster it; **ammo and durability** persist
+  in metadata (durability wears per bullet, weapon jams at 0); **attachments**
+  attach by using a component item and detach from the weapon modal, returning
+  the component to the inventory. (`client/weapons.lua`)
+- **Containers**: items with a `container` definition (e.g. the `bag`) open their
+  own persistent inventory; nesting a container in itself is blocked.
+
 ## NUI protocol
 The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 `setupInventory`, `refreshSlots`, `itemNotify`, … and answers the UI's
@@ -73,14 +86,13 @@ The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 `client/nui.lua`.
 
 ## Roadmap
-- **Phase 2 (cont.)** — containers (bags inside bags), group/job access on
-  stashes
-- **Phase 3 (cont.)** — weapon attachments/ammo/durability, account-money
-  bridge (sync framework cash with the `money` item)
-- **Phase 4** — framework bridges parity (ESX/Qbox), anti-exploit hardening
+- Container **weight propagation** (a bag's weight includes its contents)
+- Account-money **give** flow (transfer cash between players)
+- Anti-exploit hardening pass + automated tests
+- Orphaned-container cleanup (when a bag item is destroyed)
 - **Advanced realism (planned)** — weight affecting stamina/movement, item
   degradation over time, dropped-item physics, inspect/3D item view, holstering
-  visuals, container weight propagation
+  visuals
 
 ## Exports
 ```lua
@@ -88,4 +100,8 @@ exports.lk_inv:AddItem(source, name, count, metadata)
 exports.lk_inv:RemoveItem(source, slotId, count)
 exports.lk_inv:GetInventory(source)
 exports.lk_inv:CreateDrop(coords, name, count, metadata)
+exports.lk_inv:RegisterStash(def)
+exports.lk_inv:RegisterShop(def)
+exports.lk_inv:RegisterCraftingBench(def)
+exports.lk_inv:OpenStash(id) / OpenShop(id) / OpenCraftingBench(id)
 ```

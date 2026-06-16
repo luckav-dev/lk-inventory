@@ -21,6 +21,13 @@ Inventory.__index = Inventory
 --- Live inventories indexed by id.
 local store = {}
 
+--- Monotonic unique id for container instances.
+local uidSeq = 0
+local function uid(prefix)
+    uidSeq = uidSeq + 1
+    return ('%s_%d_%d'):format(prefix or 'id', uidSeq, math.random(10000, 99999))
+end
+
 --- @param name string
 --- @return table|nil item definition
 local function itemDef(name)
@@ -147,6 +154,15 @@ function Inventory:addItem(name, count, metadata)
 
     count = Utils.posInt(count)
     if count == 0 then count = 1 end
+
+    -- Initialise metadata for special item types.
+    metadata = metadata or {}
+    if def.weapon then
+        if metadata.durability == nil then metadata.durability = 100 end
+        if metadata.ammo == nil then metadata.ammo = 0 end
+    elseif def.container and not metadata.container then
+        metadata.container = uid('cont')
+    end
 
     local addWeight = slotWeight(name, count)
     if not self:canHold(addWeight) then return false end

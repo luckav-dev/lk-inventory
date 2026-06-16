@@ -2,13 +2,11 @@ local Utils = require 'shared.utils'
 
 --- Thin framework abstraction. Exposes a uniform interface regardless of the
 --- underlying framework so the inventory core never references qb-core/ESX
---- directly. QBCore is wired up first; others can be added the same way.
+--- directly. QBCore/Qbox and ESX are wired up; standalone is the fallback.
 ---@class Framework
----@field name string
----@field getPlayer fun(source: integer): { id: string, name: string }|nil
----@field onLoaded fun(cb: fun(source: integer, id: string, name: string))
----@field onDropped fun(cb: fun(source: integer))
-local Framework = {}
+local Framework = {
+    name = 'standalone',
+}
 
 local function detect()
     if GetResourceState('qb-core') == 'started' then return 'qb' end
@@ -30,50 +28,100 @@ local function fireDropped(source)
     for i = 1, #droppedCbs do droppedCbs[i](source) end
 end
 
+-- Defaults (overridden per framework). Returning nil from getMoney signals the
+-- caller to fall back to the in-inventory `money` item.
+function Framework.getPlayer(_) return nil end
+function Framework.getMoney(_, _) return nil end
+function Framework.addMoney(_, _, _) return false end
+function Framework.removeMoney(_, _, _) return false end
+function Framework.getGroups(_) return {} end
+
 CreateThread(function()
     Framework.name = detect()
     Utils.log('info', 'framework detected:', Framework.name)
 
     if Framework.name == 'qb' or Framework.name == 'qbx' then
-        local export = Framework.name == 'qb' and exports['qb-core'] or exports.qbx_core
-        -- Wait for the core to be reachable, then bridge its lifecycle events.
-        while GetResourceState(Framework.name == 'qb' and 'qb-core' or 'qbx_core') ~= 'started' do Wait(100) end
+        local coreRes = Framework.name == 'qb' and 'qb-core' or 'qbx_core'
+        while GetResourceState(coreRes) ~= 'started' do Wait(100) end
 
-        local Core = Framework.name == 'qb' and export:GetCoreObject() or nil
+        local QB = Framework.name == 'qb' and exports['qb-core']:GetCoreObject() or exports.qbx_core
+        local getP = function(src)
+            return Framework.name == 'qb' and QB.Functions.GetPlayer(src) or QB:GetPlayer(src)
+        end
 
-        Framework.getPlayer = function(source)
-            local p = Framework.name == 'qb' and Core.Functions.GetPlayer(source) or export:GetPlayer(source)
+        Framework.getPlayer = function(src)
+            local p = getP(src)
             if not p then return nil end
             local pd = p.PlayerData
+            return { id = pd.citizenid,
+                     name = ('%s %s'):format(pd.charinfo.firstname, pd.charinfo.lastname) }
+        end
+
+        Framework.getMoney = function(src, account)
+            local p = getP(src)
+            return p and p.PlayerData.money[account or 'cash'] or nil
+        end
+        Framework.addMoney = function(src, account, amount)
+            local p = getP(src); if not p then return false end
+            return p.Functions.AddMoney(account or 'cash', amount) and true
+        end
+        Framework.removeMoney = function(src, account, amount)
+            local p = getP(src); if not p then return false end
+            return p.Functions.RemoveMoney(account or 'cash', amount) and true
+        end
+        Framework.getGroups = function(src)
+            local p = getP(src); if not p then return {} end
+            local pd = p.PlayerData
             return {
-                id = pd.citizenid,
-                name = ('%s %s'):format(pd.charinfo.firstname, pd.charinfo.lastname),
+                [pd.job.name] = pd.job.grade.level,
+                [pd.gang.name] = pd.gang.grade.level,
             }
         end
 
         AddEventHandler('QBCore:Server:PlayerLoaded', function(player)
-            local pd = (player and player.PlayerData) or nil
-            if not pd then return end
-            fireLoaded(pd.source, pd.citizenid,
-                ('%s %s'):format(pd.charinfo.firstname, pd.charinfo.lastname))
+            local pd = player and player.PlayerData
+            if pd then fireLoaded(pd.source, pd.citizenid,
+                ('%s %s'):format(pd.charinfo.firstname, pd.charinfo.lastname)) end
         end)
         AddEventHandler('QBCore:Server:OnPlayerUnload', fireDropped)
     elseif Framework.name == 'esx' then
         local ESX = exports.es_extended:getSharedObject()
-        Framework.getPlayer = function(source)
-            local p = ESX.GetPlayerFromId(source)
+
+        Framework.getPlayer = function(src)
+            local p = ESX.GetPlayerFromId(src)
             if not p then return nil end
             return { id = p.identifier, name = p.getName and p.getName() or p.name }
         end
-        RegisterNetEvent('esx:playerLoaded', function(source, xPlayer)
-            fireLoaded(source, xPlayer.identifier, xPlayer.getName and xPlayer.getName() or xPlayer.name)
+        Framework.getMoney = function(src, account)
+            local p = ESX.GetPlayerFromId(src); if not p then return nil end
+            if account == 'bank' then
+                local acc = p.getAccount('bank'); return acc and acc.money or 0
+            end
+            return p.getMoney()
+        end
+        Framework.addMoney = function(src, account, amount)
+            local p = ESX.GetPlayerFromId(src); if not p then return false end
+            if account == 'bank' then p.addAccountMoney('bank', amount) else p.addMoney(amount) end
+            return true
+        end
+        Framework.removeMoney = function(src, account, amount)
+            local p = ESX.GetPlayerFromId(src); if not p then return false end
+            if account == 'bank' then p.removeAccountMoney('bank', amount) else p.removeMoney(amount) end
+            return true
+        end
+        Framework.getGroups = function(src)
+            local p = ESX.GetPlayerFromId(src); if not p then return {} end
+            return { [p.job.name] = p.job.grade }
+        end
+
+        RegisterNetEvent('esx:playerLoaded', function(src, xPlayer)
+            fireLoaded(src, xPlayer.identifier, xPlayer.getName and xPlayer.getName() or xPlayer.name)
         end)
         AddEventHandler('esx:playerDropped', fireDropped)
     else
-        -- Standalone: identify by license, load on first spawn.
-        Framework.getPlayer = function(source)
-            local id = GetPlayerIdentifierByType(source, 'license') or ('src:' .. source)
-            return { id = id, name = GetPlayerName(source) or ('Player ' .. source) }
+        Framework.getPlayer = function(src)
+            local id = GetPlayerIdentifierByType(src, 'license') or ('src:' .. src)
+            return { id = id, name = GetPlayerName(src) or ('Player ' .. src) }
         end
         AddEventHandler('playerJoining', function()
             local src = source

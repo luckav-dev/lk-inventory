@@ -27,6 +27,10 @@ function Stashes.isStash(id)
     return defs[id] ~= nil
 end
 
+function Stashes.getDef(id)
+    return defs[id]
+end
+
 --- Load the stash into memory from the database if needed, returning the live
 --- inventory.
 --- @return Inventory|nil

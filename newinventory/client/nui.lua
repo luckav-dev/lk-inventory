@@ -1,4 +1,5 @@
-local Client = require 'client.main'
+local Client  = require 'client.main'
+local Weapons = require 'client.weapons'
 
 --- Find the closest player's server id (used for giving items).
 local function closestPlayer()
@@ -47,7 +48,13 @@ RegisterNUICallback('swapItems', function(data, cb)
 end)
 
 RegisterNUICallback('useItem', function(slot, cb)
-    cb(lib.callback.await('lk_inv:useItem', false, slot) or false)
+    local result = lib.callback.await('lk_inv:useItem', false, slot)
+    if type(result) == 'table' then
+        if result.weapon then Weapons.use(result.weapon); return cb(true) end
+        if result.component then Weapons.attach(result.component); return cb(true) end
+        if result.open then Client.openInventory(result.open); return cb(true) end
+    end
+    cb(result or false)
 end)
 
 RegisterNUICallback('giveItem', function(data, cb)
@@ -73,7 +80,10 @@ end)
 -- Features not yet implemented in this foundation: acknowledge cleanly so the
 -- UI never stalls.
 RegisterNUICallback('removeAmmo', function(_, cb) cb(false) end)
-RegisterNUICallback('removeComponent', function(_, cb) cb(false) end)
+RegisterNUICallback('removeComponent', function(data, cb)
+    Weapons.removeComponent(data and data.slot, data and data.component)
+    cb(true)
+end)
 RegisterNUICallback('useButton', function(_, cb) cb(false) end)
 RegisterNUICallback('lootAllComplete', function(_, cb) cb(1) end)
 RegisterNUICallback('toggleClothing', function(_, cb) cb(1) end)

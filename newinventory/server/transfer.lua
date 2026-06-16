@@ -26,6 +26,11 @@ function Transfer.move(from, fromSlotId, to, toSlotId, count)
     local def = Inventory.itemDef(fromSlot.name)
     if not def then return false end
 
+    -- Never allow placing a container item inside the container it represents.
+    if fromSlot.metadata and fromSlot.metadata.container and fromSlot.metadata.container == to.id then
+        return false
+    end
+
     local moveWeight = Inventory.slotWeight(fromSlot.name, count)
     local toSlot = to.items[toSlotId]
 
