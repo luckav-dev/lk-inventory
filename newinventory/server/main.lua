@@ -35,6 +35,34 @@ end
 local owners = {}
 local openSecondary = {}
 
+-- Open authorization: opening another player's body, a vehicle trunk, etc. must
+-- be granted by the matching prep step (proximity/condition checked there) so a
+-- client can't open arbitrary inventories by guessing ids.
+local pendingOpen = {}        -- source -> authorized secondary id
+local searchable = {}         -- source -> true when frisk-able (cuffed/hands up)
+local dumpsterSearched = {}   -- dumpster id -> last search time
+
+local function authorize(source, id)
+    pendingOpen[source] = id
+end
+
+--- May `source` open this secondary inventory right now?
+local function isAuthorized(source, id, secondary)
+    local t = secondary.type
+    if t == 'player' then
+        return id == source or pendingOpen[source] == id
+    elseif t == 'trunk' or t == 'glovebox' or t == 'dumpster' then
+        return pendingOpen[source] == id
+    elseif t == 'drop' then
+        local coords = Drops.getCoords(id)
+        if not coords then return false end
+        local ped = GetPlayerPed(source)
+        return ped ~= 0 and #(GetEntityCoords(ped) - coords) <= 3.0
+    end
+    -- stash (group-gated separately), shop, crafting and containers are public.
+    return true
+end
+
 --- Push the given slot ids of an inventory to everyone currently viewing it.
 local function pushSlots(inv, slotIds)
     if not inv or not next(inv.viewers) then return end
@@ -195,6 +223,8 @@ Framework.onDropped(function(source)
     Inventory.remove(source)
     owners[source] = nil
     openSecondary[source] = nil
+    pendingOpen[source] = nil
+    searchable[source] = nil
     Security.clear(source)
 end)
 
@@ -215,10 +245,11 @@ CreateThread(function()
             end
         end
 
-        -- Unload idle containers (no viewers, empty) to free memory; they reload
-        -- from the database the next time the bag is opened.
+        -- Unload idle, empty transient inventories (bags reload from the DB on
+        -- next open; dumpsters regenerate loot after their cooldown).
         for id, inv in pairs(Inventory.all()) do
-            if inv.type == 'container' and not next(inv.viewers) and not next(inv.items) then
+            if (inv.type == 'container' or inv.type == 'dumpster')
+                and not next(inv.viewers) and not next(inv.items) then
                 Inventory.remove(id)
             end
         end
@@ -273,6 +304,12 @@ lib.callback.register('lk_inv:open', function(source, secondaryId)
                 secondary = nil
             end
         end
+
+        -- Authorization gate (prevents opening arbitrary players/trunks).
+        if secondary and not isAuthorized(source, secondaryId, secondary) then
+            secondary = nil
+        end
+        pendingOpen[source] = nil
 
         if secondary then
             openSecondary[source] = secondaryId
@@ -471,6 +508,7 @@ lib.callback.register('lk_inv:prepVehicle', function(source, data)
         })
     end
 
+    authorize(source, id)
     return id
 end)
 
@@ -481,6 +519,69 @@ lib.callback.register('lk_inv:trunkLoad', function(source, plate)
     local inv = Inventory.get(('trunk_%s'):format(tostring(plate):gsub('%s+$', '')))
     if not inv or inv.maxWeight <= 0 then return 0 end
     return math.min(inv.weight / inv.maxWeight, 1.0)
+end)
+
+--- Mark yourself frisk-able (set by cuff / hands-up scripts). Exposed as an
+--- export so other resources can flag a player too.
+RegisterNetEvent('lk_inv:setSearchable', function(state)
+    searchable[source] = state and true or nil
+end)
+exports('SetSearchable', function(target, state)
+    searchable[target] = state and true or nil
+end)
+
+--- Frisk/search a nearby player. Allowed when the target is down (dead) or has
+--- been flagged searchable, and is within reach.
+lib.callback.register('lk_inv:searchPlayer', function(source, targetId)
+    targetId = tonumber(targetId)
+    if not targetId or targetId == source then return false end
+    if not Security.allow(source, 'use') then return false end
+
+    local sPed, tPed = GetPlayerPed(source), GetPlayerPed(targetId)
+    if sPed == 0 or tPed == 0 then return false end
+    if #(GetEntityCoords(sPed) - GetEntityCoords(tPed)) > 2.5 then return false end
+
+    local down = GetEntityHealth(tPed) <= 100
+    if not down and not searchable[targetId] then return false end
+    if not Inventory.get(targetId) then return false end
+
+    authorize(source, targetId)
+    return targetId
+end)
+
+--- Search a dumpster. The client sends the prop coords; the server generates
+--- loot the first time (with a cooldown) and authorizes opening it.
+lib.callback.register('lk_inv:searchDumpster', function(source, coords)
+    if type(coords) ~= 'vector3' and type(coords) ~= 'table' then return false end
+    if not Security.allow(source, 'use') then return false end
+
+    local pos = vec3(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
+    local ped = GetPlayerPed(source)
+    if ped == 0 or #(GetEntityCoords(ped) - pos) > 3.0 then return false end
+
+    local Dump = require 'config.dumpsters'
+    local id = ('dump_%d_%d_%d'):format(math.floor(pos.x), math.floor(pos.y), math.floor(pos.z))
+
+    local inv = Inventory.get(id)
+    if not inv then
+        local last = dumpsterSearched[id]
+        local fresh = not last or (GetGameTimer() - last) > Dump.cooldown
+        inv = Inventory.create(id, {
+            type = 'dumpster', label = 'Dumpster',
+            slots = Dump.slots, maxWeight = Dump.weight, items = {},
+        })
+        if fresh then
+            for _, entry in ipairs(Dump.loot) do
+                if math.random() <= entry.chance then
+                    inv:addItem(entry.name, math.random(entry.min, entry.max))
+                end
+            end
+            dumpsterSearched[id] = GetGameTimer()
+        end
+    end
+
+    authorize(source, id)
+    return id
 end)
 
 lib.callback.register('lk_inv:useItem', function(source, slotId)

@@ -22,6 +22,10 @@ interface, copied in unchanged.
   and a worn backpack appears when you carry a bag (the equipped gun hides).
 - **Carry heavy items in hand** — a `box`-type item is picked up with a carry
   animation, slows you, blocks sprint/weapons, and is set down as a real object.
+- **Frisk / rob players** — search a downed or hands-up player's inventory, with
+  a server-side authorization gate so you can't open arbitrary inventories.
+- **Searchable dumpsters** — rummage configured world props for random loot
+  (server-rolled, with a cooldown).
 
 ## Why a separate resource
 It lives in its own folder (`lk_inv`) and its own database table
@@ -144,6 +148,18 @@ The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 >
 > Body-visual bone ids/offsets in `config.visuals` are approximate — tune them
 > on a live server.
+
+**Phase 9 — frisking, dumpsters & open security**
+- **Frisk players** (`client/search.lua`, `lk_inv:searchPlayer`): `/search` the
+  nearest player; the server allows it only when they're down (dead) or flagged
+  searchable, and within reach. `/handsup` (X) makes you frisk-able; other
+  resources can flag a player via `exports.lk_inv:SetSearchable`.
+- **Dumpster search** (`client/dumpsters.lua`, `lk_inv:searchDumpster`): press E
+  at a dumpster for server-rolled loot (`config/dumpsters.lua`), with a cooldown.
+- **Open authorization**: opening a player body, vehicle trunk/glovebox or
+  dumpster now requires the matching prep step (proximity/condition checked
+  server-side); drops require proximity. Stops clients opening inventories by
+  guessing ids.
 
 ## Roadmap (remaining)
 - Live testing pass on a real server (FiveM-native paths: NUI, drops, weapons,

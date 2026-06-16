@@ -92,4 +92,8 @@ function Drops.exists(id)
     return meta[id] ~= nil
 end
 
+function Drops.getCoords(id)
+    return meta[id] and meta[id].coords
+end
+
 return Drops

@@ -20,4 +20,6 @@ else
     require 'client.crafting'
     require 'client.weight'
     require 'client.cargo'
+    require 'client.search'
+    require 'client.dumpsters'
 end
