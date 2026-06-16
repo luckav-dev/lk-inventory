@@ -1,5 +1,6 @@
 local Config = require 'config.config'
 local Client = require 'client.main'
+local Notify = require 'client.notify'
 
 --- Find the closest vehicle to a position within `maxDist`.
 local function closestVehicle(coords, maxDist)
@@ -27,7 +28,7 @@ local function openVehicleStorage()
         vtype = 'trunk'
         -- Trunk requires the vehicle to be unlocked.
         if veh and GetVehicleDoorLockStatus(veh) == 2 then
-            return lib.notify and lib.notify({ type = 'error', description = 'Vehicle is locked' })
+            return Notify.send({ type = 'error', description = 'Vehicle is locked' })
         end
     end
 

@@ -12,12 +12,24 @@ RegisterNetEvent('lk_inv:weight', function(value)
 end)
 
 CreateThread(function()
+    local heavy = false
     while true do
         if ratio > THRESHOLD then
             local over = math.min((ratio - THRESHOLD) / (1.0 - THRESHOLD), 1.0)
             SetPedMoveRateOverride(cache.ped, 1.0 - over * MAX_PENALTY)
+
+            -- A heavy load also burns sprint stamina faster and slows swimming.
+            SetPlayerSprintStaminaMultiplier(cache.playerId, 1.0 + over)      -- drains quicker
+            SetSwimMultiplierForPlayer(cache.playerId, 1.0 - over * 0.5)
+            heavy = true
             Wait(0)
         else
+            if heavy then
+                -- Restore normal stamina/swim once the load drops.
+                SetPlayerSprintStaminaMultiplier(cache.playerId, 1.0)
+                SetSwimMultiplierForPlayer(cache.playerId, 1.0)
+                heavy = false
+            end
             Wait(500)
         end
     end

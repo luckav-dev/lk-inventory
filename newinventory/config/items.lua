@@ -18,15 +18,28 @@ return {
         label = 'Water', weight = 500, stack = true, close = false, usable = true,
         description = 'A refreshing bottle of water.',
         ground = 'prop_ld_flow_bottle',
+        effects = { thirst = 25 }, -- relayed to a status/metabolism resource
     },
     burger = {
         label = 'Burger', weight = 220, stack = true, close = false, usable = true,
         description = 'Greasy but it does the job.',
         ground = 'prop_cs_burger_01',
+        effects = { hunger = 30 },
     },
     bandage = {
         label = 'Bandage', weight = 100, stack = true, close = false, usable = true,
         ground = 'prop_cs_tablet',
+        effects = { health = 15 },
+    },
+    -- Limited-use item (charges decrement per use).
+    spray = {
+        label = 'Spray Can', weight = 300, stack = false, close = false, usable = true,
+        uses = 10, ground = 'prop_cs_spray_can',
+    },
+    -- Repair kit: restores the equipped weapon's durability.
+    repairkit = {
+        label = 'Weapon Repair Kit', weight = 800, stack = true, close = true, usable = true,
+        repair = { amount = 100 }, ground = 'prop_tool_box_04',
     },
     phone = {
         label = 'Phone', weight = 190, stack = false, close = true, usable = true,

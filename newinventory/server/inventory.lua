@@ -179,6 +179,11 @@ function Inventory:addItem(name, count, metadata)
         metadata.durability = os.time() + def.degrade * 60
     end
 
+    -- Limited-use items (lighter, spray, kit) track remaining charges.
+    if def.uses and metadata.uses == nil then
+        metadata.uses = def.uses
+    end
+
     local addWeight = slotWeight(name, count)
     if not self:canHold(addWeight) then return false end
 

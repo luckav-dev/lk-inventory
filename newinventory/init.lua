@@ -7,6 +7,7 @@ end
 if IsDuplicityVersion() then
     require 'server.main'
 else
+    require 'client.notify'
     require 'client.main'
     require 'client.visuals'
     require 'client.weapons'

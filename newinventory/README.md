@@ -149,6 +149,31 @@ The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 > Body-visual bone ids/offsets in `config.visuals` are approximate — tune them
 > on a live server.
 
+**Phase 10 — infrastructure & item depth**
+- **Pluggable notifications** (`client/notify.lua`, `config.notify`): auto-uses
+  ox_lib's `lib.notify` when ox_lib runs, else the native GTA feed, or forwards
+  to your own system via the `lk_inv:notification` event — no collision with
+  another notification resource.
+- **Action logging** (`server/logs.lua`, `config.logs`): drop/give/buy/craft/
+  frisk/dumpster/money events fire `lk_inv:log` for external loggers and can
+  post to a Discord webhook; per-category toggles.
+- **Charged items**: items with `uses` (e.g. `spray`) decrement per use and are
+  consumed only when empty.
+- **Effects relay**: consumables with `effects` fire `lk_inv:useEffects` so a
+  status/metabolism resource applies them — the inventory never implements
+  hunger/thirst itself (stays an inventory, no collision).
+- **Weight → stamina & swimming**: a heavy load also drains sprint stamina and
+  slows swimming, not just walking.
+- **Weapon repair kits**: using a `repairkit` restores the equipped weapon's
+  durability.
+- **Crafting success chance**: recipes can set `successChance`; a failed craft
+  still consumes the materials.
+
+> Design note: features that belong to other resources (metabolism, death, etc.)
+> are exposed as **events/exports** rather than implemented here, so this stays
+> an inventory and never collides with your other scripts. Framework and
+> notification providers are auto-detected.
+
 **Phase 9 — frisking, dumpsters & open security**
 - **Frisk players** (`client/search.lua`, `lk_inv:searchPlayer`): `/search` the
   nearest player; the server allows it only when they're down (dead) or flagged

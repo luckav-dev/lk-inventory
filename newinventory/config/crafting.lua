@@ -19,7 +19,9 @@ return {
                 ingredients = { scrapmetal = 2, water = 1 },
             },
             {
+                -- 70% success: a failed craft still consumes the materials.
                 name = 'lockpick', count = 1, duration = 6000,
+                successChance = 0.7,
                 ingredients = { scrapmetal = 3 },
             },
             {

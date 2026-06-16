@@ -129,6 +129,13 @@ do
     check('nesting any bag in a container is blocked', Transfer.move(inv, 2, otherBag, 1, 1) == false)
 end
 
+-- Charges: limited-use items initialise their `uses` metadata
+do
+    local inv = newInv('uses1')
+    inv:addItem('spray')
+    check('spray initialises uses=10', inv.items[1].metadata and inv.items[1].metadata.uses == 10)
+end
+
 -- Container weight propagation: holder slot reflects contents
 do
     local holder = newInv('h1')

@@ -95,6 +95,28 @@ return {
         },
     },
 
+    -- Notifications. 'auto' uses ox_lib's lib.notify when ox_lib is running,
+    -- otherwise the native GTA feed. 'oxlib' / 'native' force one; 'custom'
+    -- forwards every notification to the `lk_inv:notification` event so the
+    -- server can route it to its own system (no collision with other scripts).
+    notify = {
+        provider = 'auto', -- auto | oxlib | native | custom
+        position = 'top-right',
+    },
+
+    -- Inventory action logging. Fires the `lk_inv:log` event for external
+    -- loggers and (optionally) posts to a Discord webhook.
+    logs = {
+        enabled = true,
+        console = true,
+        webhook = '', -- Discord webhook URL ('' to disable)
+        -- per-category toggles
+        categories = {
+            drop = true, give = true, buy = true, craft = true,
+            frisk = true, dumpster = true, money = true, stash = true,
+        },
+    },
+
     -- How often (ms) dirty inventories are flushed to the database
     saveInterval = 5 * 60 * 1000,
 

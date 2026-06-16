@@ -55,6 +55,7 @@ RegisterNUICallback('useItem', function(slot, cb)
         if result.component then Weapons.attach(result.component); return cb(true) end
         if result.open then Client.openInventory(result.open); return cb(true) end
         if result.carry then Carry.start(result.carry); return cb(true) end
+        if result.repair then Weapons.repair(result.repair); return cb(true) end
     end
     cb(result or false)
 end)

@@ -48,6 +48,7 @@ function Crafting.ensure(id)
                 weight = 0,
                 duration = r.duration or 3000,
                 ingredients = r.ingredients or {},
+                successChance = r.successChance,
                 metadata = {},
             }
         end

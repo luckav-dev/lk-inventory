@@ -11,6 +11,13 @@ local Shops     = require 'server.shops'
 local Crafting  = require 'server.crafting'
 local Money     = require 'server.money'
 local Security  = require 'server.security'
+local Logs      = require 'server.logs'
+
+--- Send a notification to a client through the pluggable notify layer.
+local function notifyClient(source, description, ntype, title)
+    TriggerClientEvent('lk_inv:notify_msg', source,
+        { description = description, type = ntype or 'inform', title = title })
+end
 
 --- Trunk/glovebox capacity for a vehicle, by model override → class → default.
 local function vehicleSpace(class, model, vtype)
@@ -354,6 +361,7 @@ lib.callback.register('lk_inv:swap', function(source, data)
         from:removeFromSlot(data.fromSlot, count)
         pushSlots(from, { data.fromSlot })
         pushWeight(source)
+        Logs.action('drop', source, ('dropped %dx %s'):format(count, slot.name))
         return true
     end
 
@@ -421,6 +429,7 @@ lib.callback.register('lk_inv:buyItem', function(source, data)
     pushSlots(player, { target })
     pushWeight(source)
     notify(source, shopSlot.name, 'ui_added', count)
+    Logs.action('buy', source, ('bought %dx %s for %d (%s)'):format(count, shopSlot.name, price, account))
     return true
 end)
 
@@ -454,10 +463,20 @@ lib.callback.register('lk_inv:craftItem', function(source, data)
     local resultWeight = Inventory.slotWeight(recipe.name, resultCount)
     if player.weight - ingWeight + resultWeight > player.maxWeight then return false end
 
-    -- Consume ingredients, then add the result.
+    -- Quality/success roll — materials are consumed either way.
+    local success = not recipe.successChance or math.random() <= recipe.successChance
+
     local changed = {}
     for name, req in pairs(ingredients) do
         removeByName(player, name, req * count, changed)
+    end
+
+    if not success then
+        pushSlots(player, changed)
+        pushWeight(source)
+        notifyClient(source, 'Crafting failed — materials lost', 'error')
+        Logs.action('craft', source, ('failed crafting %s'):format(recipe.name))
+        return true
     end
 
     local target = player:findStack(recipe.name, {}) or player:firstFree()
@@ -468,6 +487,7 @@ lib.callback.register('lk_inv:craftItem', function(source, data)
     pushSlots(player, changed)
     pushWeight(source)
     notify(source, recipe.name, 'ui_added', resultCount)
+    Logs.action('craft', source, ('crafted %dx %s'):format(resultCount, recipe.name))
     return true
 end)
 
@@ -546,6 +566,7 @@ lib.callback.register('lk_inv:searchPlayer', function(source, targetId)
     if not Inventory.get(targetId) then return false end
 
     authorize(source, targetId)
+    Logs.action('frisk', source, ('searched player %s'):format(targetId))
     return targetId
 end)
 
@@ -581,6 +602,7 @@ lib.callback.register('lk_inv:searchDumpster', function(source, coords)
     end
 
     authorize(source, id)
+    Logs.action('dumpster', source, 'searched a dumpster')
     return id
 end)
 
@@ -627,13 +649,55 @@ lib.callback.register('lk_inv:useItem', function(source, slotId)
         return { carry = { slot = slotId, name = slot.name } }
     end
 
-    -- Consumable: notify listeners and decrement by one.
+    -- Repair kit: the client repairs the equipped weapon (see lk_inv:repairWeapon).
+    if def.repair then
+        return { repair = { slot = slotId } }
+    end
+
+    -- Consumable. Relay effects to status/metabolism scripts (we never implement
+    -- hunger/thirst ourselves — that belongs to another resource).
     TriggerEvent('lk_inv:itemUsed', source, slot.name, slot.metadata)
-    inv:removeFromSlot(slotId, 1)
-    pushSlots(inv, { slotId })
+    if def.effects then
+        TriggerClientEvent('lk_inv:useEffects', source, slot.name, def.effects)
+    end
+
+    -- Charges: decrement a use, or consume the whole item when none remain.
+    if slot.metadata and slot.metadata.uses and slot.metadata.uses > 1 then
+        slot.metadata.uses = slot.metadata.uses - 1
+        inv.dirty = true
+        pushSlots(inv, { slotId })
+    else
+        inv:removeFromSlot(slotId, 1)
+        pushSlots(inv, { slotId })
+        notify(source, slot.name, 'ui_removed', 1)
+    end
+
     pushWeight(source)
-    notify(source, slot.name, 'ui_removed', 1)
     return true
+end)
+
+--- Repair the equipped weapon with a repair kit (client supplies both slots).
+lib.callback.register('lk_inv:repairWeapon', function(source, data)
+    if type(data) ~= 'table' then return false end
+    local inv = Inventory.get(source)
+    if not inv then return false end
+
+    local kit = inv.items[data.kitSlot]
+    local weapon = inv.items[data.weaponSlot]
+    if not kit or not weapon then return false end
+
+    local kdef = Inventory.itemDef(kit.name)
+    local wdef = Inventory.itemDef(weapon.name)
+    if not kdef or not kdef.repair or not wdef or not wdef.weapon then return false end
+
+    weapon.metadata = weapon.metadata or {}
+    weapon.metadata.durability = kdef.repair.amount or 100
+
+    inv:removeFromSlot(data.kitSlot, 1)
+    inv.dirty = true
+    pushSlots(inv, { data.weaponSlot, data.kitSlot })
+    Logs.action('craft', source, ('repaired %s'):format(weapon.name))
+    return weapon.metadata.durability
 end)
 
 --- Persist a weapon's live state (ammo/durability/components) from the client.
@@ -729,6 +793,7 @@ lib.callback.register('lk_inv:give', function(source, data)
         Framework.addMoney(target, 'cash', amount)
         pushSlots(from, Money.syncItem(source))
         pushSlots(to, Money.syncItem(target))
+        Logs.action('money', source, ('gave $%d to %s'):format(amount, target))
         return true
     end
 
@@ -741,6 +806,7 @@ lib.callback.register('lk_inv:give', function(source, data)
     pushWeight(source)
     pushWeight(target)
     notify(target, slot.name, 'ui_added', count)
+    Logs.action('give', source, ('gave %dx %s to %s'):format(count, slot.name, target))
     return true
 end)
 
