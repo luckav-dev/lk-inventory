@@ -199,6 +199,9 @@ MySQL.ready(Db.init)
 
 --- Load (or create) a player's inventory when they spawn.
 Framework.onLoaded(function(source, ownerId, name)
+    -- Guard against double-loading (e.g. startup loop + load event racing).
+    if owners[source] == ownerId and Inventory.get(source) then return end
+
     owners[source] = ownerId
     local stored = Db.load(ownerId, 'player')
 
@@ -576,8 +579,10 @@ lib.callback.register('lk_inv:searchPlayer', function(source, targetId)
     if sPed == 0 or tPed == 0 then return false end
     if #(GetEntityCoords(sPed) - GetEntityCoords(tPed)) > 2.5 then return false end
 
-    local down = GetEntityHealth(tPed) <= 100
-    if not down and not searchable[targetId] then return false end
+    -- Searchable state is set by death/cuff/hands-up scripts via the
+    -- SetSearchable export (server-side GetEntityHealth is unreliable under
+    -- OneSync, so we don't infer "down" ourselves — other resources tell us).
+    if not searchable[targetId] then return false end
     if not Inventory.get(targetId) then return false end
 
     authorize(source, targetId)
@@ -1004,3 +1009,74 @@ end)
 exports('GetMoney', function(source)
     return Money.get(source)
 end)
+
+----------------------------------------------------------------------
+-- ox_inventory-compatible exports (so the script ecosystem works unchanged).
+-- Only registered when there is no real ox_inventory resource, avoiding any
+-- export collision. They map the common ox_inventory API to our model.
+----------------------------------------------------------------------
+if Config.compat and Config.compat.oxinventory and GetResourceState('ox_inventory') == 'missing' then
+    local function oxExport(name, fn)
+        AddEventHandler(('__cfx_export_ox_inventory_%s'):format(name), function(setCB) setCB(fn) end)
+    end
+
+    oxExport('Items', function(item)
+        if item then return clientItems[item] end
+        return clientItems
+    end)
+
+    oxExport('GetItemCount', function(inv, item)
+        local i = Inventory.get(inv)
+        return i and itemCount(i, item) or 0
+    end)
+
+    oxExport('GetInventory', function(inv)
+        local i = Inventory.get(inv)
+        return i and i:toClient() or nil
+    end)
+
+    oxExport('CanCarryItem', function(inv, item, count)
+        local i = Inventory.get(inv)
+        if not i then return false end
+        return i:canHold(Inventory.slotWeight(item, count or 1))
+            and (i:findStack(item) or i:firstFree()) ~= nil
+    end)
+
+    oxExport('AddItem', function(inv, item, count, metadata)
+        local i = Inventory.get(inv)
+        if not i then return false end
+        local target = i:findStack(item, metadata) or i:firstFree()
+        local ok = i:addItem(item, count, metadata)
+        if ok then
+            if target then pushSlots(i, { target }) end
+            pushWeight(inv)
+            notify(inv, item, 'ui_added', count or 1)
+        end
+        return ok
+    end)
+
+    oxExport('RemoveItem', function(inv, item, count, metadata)
+        local i = Inventory.get(inv)
+        if not i then return false end
+        count = count or 1
+        if itemCount(i, item) < count then return false end
+        local changed = removeByName(i, item, count)
+        pushSlots(i, changed)
+        pushWeight(inv)
+        notify(inv, item, 'ui_removed', count)
+        return true
+    end)
+
+    oxExport('Search', function(inv, search, item)
+        local i = Inventory.get(inv)
+        if not i then return search == 'count' and 0 or {} end
+        if search == 'count' then return itemCount(i, item) end
+        local slots = {}
+        for _, s in pairs(i.items) do
+            if s.name == item then slots[#slots + 1] = s end
+        end
+        return slots
+    end)
+
+    Logs.action('stash', nil, 'ox_inventory compatibility exports enabled')
+end

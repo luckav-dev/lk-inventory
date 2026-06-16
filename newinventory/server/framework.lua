@@ -40,23 +40,17 @@ CreateThread(function()
     Framework.name = detect()
     Utils.log('info', 'framework detected:', Framework.name)
 
-    if Framework.name == 'qb' or Framework.name == 'qbx' then
-        local coreRes = Framework.name == 'qb' and 'qb-core' or 'qbx_core'
-        while GetResourceState(coreRes) ~= 'started' do Wait(100) end
-
-        local QB = Framework.name == 'qb' and exports['qb-core']:GetCoreObject() or exports.qbx_core
-        local getP = function(src)
-            return Framework.name == 'qb' and QB.Functions.GetPlayer(src) or QB:GetPlayer(src)
-        end
+    if Framework.name == 'qb' then
+        while GetResourceState('qb-core') ~= 'started' do Wait(100) end
+        local QB = exports['qb-core']:GetCoreObject()
+        local function getP(src) return QB.Functions.GetPlayer(src) end
 
         Framework.getPlayer = function(src)
-            local p = getP(src)
-            if not p then return nil end
+            local p = getP(src); if not p then return nil end
             local pd = p.PlayerData
             return { id = pd.citizenid,
                      name = ('%s %s'):format(pd.charinfo.firstname, pd.charinfo.lastname) }
         end
-
         Framework.getMoney = function(src, account)
             local p = getP(src)
             return p and p.PlayerData.money[account or 'cash'] or nil
@@ -72,10 +66,7 @@ CreateThread(function()
         Framework.getGroups = function(src)
             local p = getP(src); if not p then return {} end
             local pd = p.PlayerData
-            return {
-                [pd.job.name] = pd.job.grade.level,
-                [pd.gang.name] = pd.gang.grade.level,
-            }
+            return { [pd.job.name] = pd.job.grade.level, [pd.gang.name] = pd.gang.grade.level }
         end
 
         AddEventHandler('QBCore:Server:PlayerLoaded', function(player)
@@ -83,6 +74,29 @@ CreateThread(function()
             if pd then fireLoaded(pd.source, pd.citizenid,
                 ('%s %s'):format(pd.charinfo.firstname, pd.charinfo.lastname)) end
         end)
+        AddEventHandler('QBCore:Server:OnPlayerUnload', fireDropped)
+    elseif Framework.name == 'qbx' then
+        while GetResourceState('qbx_core') ~= 'started' do Wait(100) end
+        local QBX = exports.qbx_core
+
+        Framework.getPlayer = function(src)
+            local p = QBX:GetPlayer(src); if not p then return nil end
+            local pd = p.PlayerData
+            return { id = pd.citizenid,
+                     name = ('%s %s'):format(pd.charinfo.firstname, pd.charinfo.lastname) }
+        end
+        -- Qbox exposes money/groups as server exports (not Player.Functions).
+        Framework.getMoney = function(src, account) return QBX:GetMoney(src, account or 'cash') or nil end
+        Framework.addMoney = function(src, account, amount) return QBX:AddMoney(src, account or 'cash', amount, 'lk_inv') and true end
+        Framework.removeMoney = function(src, account, amount) return QBX:RemoveMoney(src, account or 'cash', amount, 'lk_inv') and true end
+        Framework.getGroups = function(src) return QBX:GetGroups(src) or {} end
+
+        AddEventHandler('QBCore:Server:PlayerLoaded', function(player)
+            local pd = player and player.PlayerData
+            if pd then fireLoaded(pd.source, pd.citizenid,
+                ('%s %s'):format(pd.charinfo.firstname, pd.charinfo.lastname)) end
+        end)
+        AddEventHandler('qbx_core:server:onPlayerUnload', fireDropped)
         AddEventHandler('QBCore:Server:OnPlayerUnload', fireDropped)
     elseif Framework.name == 'esx' then
         local ESX = exports.es_extended:getSharedObject()
@@ -128,6 +142,15 @@ CreateThread(function()
             local p = Framework.getPlayer(src)
             if p then fireLoaded(src, p.id, p.name) end
         end)
+    end
+
+    -- Load players already connected when the inventory (re)starts — the load
+    -- events only fire for new logins, so a resource restart needs this.
+    Wait(500)
+    for _, src in ipairs(GetPlayers()) do
+        src = tonumber(src)
+        local p = Framework.getPlayer and Framework.getPlayer(src)
+        if p then fireLoaded(src, p.id, p.name) end
     end
 end)
 

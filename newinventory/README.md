@@ -33,10 +33,30 @@ It lives in its own folder (`lk_inv`) and its own database table
 touching it.
 
 ## Requirements
-- [ox_lib](https://github.com/communityox/ox_lib)
+- [ox_lib](https://github.com/communityox/ox_lib) — used for the resource's
+  plumbing (module `require`, callbacks, points), like ox_inventory. Required.
 - [oxmysql](https://github.com/communityox/oxmysql)
-- A framework (QBCore is wired up; ESX/Qbox/standalone are auto-detected via the
-  bridge in `server/framework.lua`)
+- A framework — **auto-detected**: QBCore (`qb-core`), Qbox (`qbx_core`), ESX
+  (`es_extended`) or standalone (`server/framework.lua`). No hard framework
+  dependency in the manifest, so it runs on any of them.
+
+## Compatibility & no collisions
+- **Notifications are pluggable** (`config.notify`): ox_lib if present, else our
+  own themed NUI toasts, or your own system via `lk_inv:notification`. ox_lib is
+  still required for callbacks/points, but its notification *style* is optional.
+- **ox_inventory-compatible exports** (`config.compat.oxinventory`) expose the
+  common ox_inventory API (`AddItem`, `RemoveItem`, `GetItemCount`, `Search`,
+  `Items`, `CanCarryItem`, `GetInventory`) so the existing script ecosystem
+  works unchanged. **Auto-disabled when a real `ox_inventory` resource exists**,
+  so there's never an export collision.
+- **Everything is namespaced** (`lk_inv:*` events, `lk_inv` exports) — no clash
+  with other resources.
+- **Other-script concerns stay external**: metabolism/status (`lk_inv:useEffects`),
+  death/cuffing (`exports.lk_inv:SetSearchable`), and logging (`lk_inv:log`) are
+  events/exports other resources hook — the inventory never implements or
+  fights them.
+- **Frisk** relies on the `searchable` flag set by your death/cuff scripts (or
+  `/handsup`), not on unreliable server-side `GetEntityHealth`.
 
 ## Install
 ```cfg

@@ -123,6 +123,13 @@ return {
         },
     },
 
+    -- Compatibility layer: expose ox_inventory-style exports so the existing
+    -- script ecosystem (jobs, shops, drugs...) works unchanged. Auto-disabled
+    -- when a real ox_inventory resource is present, so there's no collision.
+    compat = {
+        oxinventory = true,
+    },
+
     -- How often (ms) dirty inventories are flushed to the database
     saveInterval = 5 * 60 * 1000,
 
