@@ -1,5 +1,6 @@
 local Client  = require 'client.main'
 local Weapons = require 'client.weapons'
+local Carry   = require 'client.carry'
 
 --- Find the closest player's server id (used for giving items).
 local function closestPlayer()
@@ -53,6 +54,7 @@ RegisterNUICallback('useItem', function(slot, cb)
         if result.weapon then Weapons.use(result.weapon); return cb(true) end
         if result.component then Weapons.attach(result.component); return cb(true) end
         if result.open then Client.openInventory(result.open); return cb(true) end
+        if result.carry then Carry.start(result.carry); return cb(true) end
     end
     cb(result or false)
 end)

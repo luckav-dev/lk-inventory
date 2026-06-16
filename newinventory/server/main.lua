@@ -49,12 +49,26 @@ local function pushSlots(inv, slotIds)
     end
 end
 
---- Send the player's current weight ratio (for the movement penalty).
+--- Body equipment the client renders: holstered weapons + whether a bag is worn.
+local function visualsFor(inv)
+    local weapons, bag = {}, false
+    for _, slot in pairs(inv.items) do
+        local def = Inventory.itemDef(slot.name)
+        if def then
+            if def.weapon then weapons[#weapons + 1] = { name = slot.name } end
+            if def.container then bag = true end
+        end
+    end
+    return { weapons = weapons, bag = bag }
+end
+
+--- Send the player's weight ratio (movement penalty) and body visuals.
 local function pushWeight(source)
     local inv = Inventory.get(source)
     if not inv then return end
     local ratio = inv.maxWeight > 0 and (inv.weight / inv.maxWeight) or 0
     TriggerClientEvent('lk_inv:weight', source, ratio)
+    TriggerClientEvent('lk_inv:visuals', source, visualsFor(inv))
 end
 
 --- When a container's contents change, refresh the holder's container slot and
@@ -153,6 +167,9 @@ Framework.onLoaded(function(source, ownerId, name)
 
     Drops.syncTo(source)
     Utils.log('info', ('loaded inventory for %s (%s)'):format(name, ownerId))
+
+    -- Render body visuals (holstered weapons / backpack) once the client is up.
+    SetTimeout(1500, function() pushWeight(source) end)
 end)
 
 local function savePlayer(source)
@@ -502,6 +519,11 @@ lib.callback.register('lk_inv:useItem', function(source, slotId)
             })
         end
         return { open = cid }
+    end
+
+    -- Carriable heavy item: client picks it up in hand.
+    if def.carry then
+        return { carry = { slot = slotId, name = slot.name } }
     end
 
     -- Consumable: notify listeners and decrement by one.

@@ -36,6 +36,9 @@ function Weapons.equip(slot, name, metadata)
         durability = metadata.durability or 100,
         components = metadata.components or {},
     }
+
+    -- Hide this weapon's body prop (it's now in hand).
+    if _G.LkVisuals then LkVisuals.setEquipped(name) end
 end
 
 function Weapons.holster(syncBack)
@@ -52,6 +55,9 @@ function Weapons.holster(syncBack)
 
     RemoveWeaponFromPed(ped, current.hash)
     current = nil
+
+    -- The weapon returns to the body.
+    if _G.LkVisuals then LkVisuals.setEquipped(nil) end
 end
 
 --- Toggle equip/holster from a "use" on a weapon item.

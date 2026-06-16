@@ -18,6 +18,10 @@ interface, copied in unchanged.
   trucks ≫ vans > 4x4 > cars > sports > bikes, with per-model overrides.
 - **Container weight is real** — a bag's contents count toward your total weight.
 - **Built-in anti-dump** — token-bucket rate limits + per-player/global drop caps.
+- **Visible equipment on the body** — holstered weapons show on your back/thigh
+  and a worn backpack appears when you carry a bag (the equipped gun hides).
+- **Carry heavy items in hand** — a `box`-type item is picked up with a carry
+  animation, slows you, blocks sprint/weapons, and is set down as a real object.
 
 ## Why a separate resource
 It lives in its own folder (`lk_inv`) and its own database table
@@ -127,8 +131,19 @@ The backend speaks the exact contract the Svelte UI expects: it sends `init`,
   drop (`server/security.lua`), plus per-player and global active-drop caps.
   Suspicious actions fire `lk_inv:exploit` for external anti-cheats.
 
+**Phase 8 — visible body equipment & carrying**
+- **Holstered weapons on the body** + **worn backpack** (`client/visuals.lua`):
+  the server pushes the player's weapon/bag set; the client attaches the real
+  props to bones (rifles back, pistols thigh). The drawn weapon is hidden.
+- **Carry heavy items** (`client/carry.lua`): items with a `carry` definition
+  are held in-hand with an animation, slow movement, disable sprint/weapons,
+  and drop as a world object when set down (press **E**).
+
 > Note: container contents count toward the holder's total weight by design
 > (realism), so a bag organises space without expanding total capacity.
+>
+> Body-visual bone ids/offsets in `config.visuals` are approximate — tune them
+> on a live server.
 
 ## Roadmap (remaining)
 - Live testing pass on a real server (FiveM-native paths: NUI, drops, weapons,

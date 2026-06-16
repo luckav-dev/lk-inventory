@@ -79,6 +79,22 @@ return {
         maxPenalty = 0.40, -- up to -40% engine torque at a full trunk
     },
 
+    -- Visible equipment on the body: holstered weapons and a worn backpack.
+    -- Bone ids and offsets are approximate — tune per server.
+    visuals = {
+        enabled = true,
+        bag = {
+            prop = 'prop_cs_heist_bag_strap_01',
+            bone = 24818, -- SKEL_Spine3 (back)
+            pos  = vec3(0.10, -0.19, 0.0),
+            rot  = vec3(0.0, 0.0, 0.0),
+        },
+        slots = {
+            back  = { bone = 24818, pos = vec3(-0.05, -0.17, 0.0), rot = vec3(0.0, 180.0, -120.0) },
+            thigh = { bone = 51826, pos = vec3(0.10, 0.0, -0.02),  rot = vec3(180.0, 90.0, 0.0) },
+        },
+    },
+
     -- How often (ms) dirty inventories are flushed to the database
     saveInterval = 5 * 60 * 1000,
 

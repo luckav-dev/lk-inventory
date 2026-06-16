@@ -20,6 +20,9 @@ local function enc(v)
 end
 json = { encode = enc, decode = function() return {} end }
 
+-- FiveM's vector constructor (config files use it).
+function vec3(x, y, z) return { x = x, y = y, z = z } end
+
 local Inventory = require 'server.inventory'
 local Transfer  = require 'server.transfer'
 

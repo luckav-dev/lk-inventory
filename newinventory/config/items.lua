@@ -48,11 +48,11 @@ return {
     -- so they appear as the actual gun lying on the floor.
     WEAPON_PISTOL = {
         label = 'Pistol', weight = 1200, stack = false, close = true, usable = true,
-        weapon = true, ammoName = 'ammo_9',
+        weapon = true, ammoName = 'ammo_9', bodySlot = 'thigh',
     },
     WEAPON_KNIFE = {
         label = 'Knife', weight = 600, stack = false, close = true, usable = true,
-        weapon = true,
+        weapon = true, bodySlot = 'thigh',
     },
     ammo_9 = {
         label = '9mm Rounds', weight = 4, stack = true, close = false, usable = false,
@@ -78,5 +78,20 @@ return {
         label = 'Backpack', weight = 1000, stack = false, close = true, usable = true,
         container = { slots = 20, weight = 40000 },
         ground = 'prop_cs_heist_bag_strap_01',
+    },
+
+    -- Carriable heavy item: pick it up in your hands, walk slowed, then set it
+    -- down on the ground (it becomes a real world object).
+    box = {
+        label = 'Heavy Box', weight = 12000, stack = false, close = true, usable = true,
+        ground = 'prop_box_guncase_01a',
+        carry = {
+            dict = 'anim@heists@box_carry@',
+            anim = 'idle',
+            prop = 'prop_box_guncase_01a',
+            bone = 28422, -- PH_R_Hand
+            pos  = vec3(0.05, 0.08, 0.20),
+            rot  = vec3(0.0, 0.0, 0.0),
+        },
     },
 }
