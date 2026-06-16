@@ -9,5 +9,7 @@ if IsDuplicityVersion() then
 else
     require 'client.main'
     require 'client.nui'
+    require 'client.sync'
     require 'client.drops'
+    require 'client.stashes'
 end

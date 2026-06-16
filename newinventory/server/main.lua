@@ -6,10 +6,33 @@ local Framework = require 'server.framework'
 local Inventory = require 'server.inventory'
 local Transfer  = require 'server.transfer'
 local Drops     = require 'server.drops'
+local Stashes   = require 'server.stashes'
 
 -- source -> ownerId, and source -> currently open secondary inventory id
 local owners = {}
 local openSecondary = {}
+
+--- Push the given slot ids of an inventory to everyone currently viewing it.
+local function pushSlots(inv, slotIds)
+    if not inv or not next(inv.viewers) then return end
+
+    local payload = {}
+    for i = 1, #slotIds do
+        payload[i] = inv:slotPayload(slotIds[i])
+    end
+
+    for source in pairs(inv.viewers) do
+        TriggerClientEvent('lk_inv:refresh', source, { items = payload })
+    end
+end
+
+--- Fire a slide-in item notification on a client. kind: 'ui_added'|'ui_removed'.
+local function notify(source, name, kind, count)
+    if not source then return end
+    local def = Inventory.itemDef(name)
+    TriggerClientEvent('lk_inv:notify', source,
+        { { name = name, label = def and def.label or name }, kind, count })
+end
 
 --- Item registry in the shape the NUI expects.
 local clientItems = (function()
@@ -67,18 +90,32 @@ end
 
 Framework.onDropped(function(source)
     savePlayer(source)
+
+    -- Drop the player from any secondary container they were viewing.
+    local secondaryId = openSecondary[source]
+    if secondaryId then
+        local secondary = Inventory.get(secondaryId)
+        if secondary then secondary:removeViewer(source) end
+    end
+
     Inventory.remove(source)
     owners[source] = nil
     openSecondary[source] = nil
 end)
 
---- Periodic flush of dirty inventories.
+--- Periodic flush of dirty inventories (players and persistent stashes).
 CreateThread(function()
     while true do
         Wait(Config.saveInterval)
-        for source, inv in pairs(Inventory.all()) do
-            if inv.type == 'player' and inv.dirty then
-                savePlayer(source)
+        for id, inv in pairs(Inventory.all()) do
+            if inv.dirty then
+                if inv.type == 'player' then
+                    savePlayer(id)
+                elseif inv.persist and inv.owner then
+                    local list = {}
+                    for _, slot in pairs(inv.items) do list[#list + 1] = slot end
+                    Db.save(inv.owner, inv.type, list)
+                end
                 inv.dirty = false
             end
         end
@@ -87,8 +124,14 @@ end)
 
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
-    for source, inv in pairs(Inventory.all()) do
-        if inv.type == 'player' then savePlayer(source) end
+    for id, inv in pairs(Inventory.all()) do
+        if inv.type == 'player' then
+            savePlayer(id)
+        elseif inv.persist and inv.owner then
+            local list = {}
+            for _, slot in pairs(inv.items) do list[#list + 1] = slot end
+            Db.save(inv.owner, inv.type, list)
+        end
     end
 end)
 
@@ -107,10 +150,19 @@ lib.callback.register('lk_inv:open', function(source, secondaryId)
     local inv = Inventory.get(source)
     if not inv then return nil end
 
+    inv:addViewer(source)
+
     local right
-    if secondaryId and Inventory.get(secondaryId) then
-        openSecondary[source] = secondaryId
-        right = Inventory.get(secondaryId):toClient()
+    if secondaryId then
+        -- A live container (drop) or a registered stash loaded on demand.
+        local secondary = Inventory.get(secondaryId) or Stashes.ensure(secondaryId)
+        if secondary then
+            openSecondary[source] = secondaryId
+            secondary:addViewer(source)
+            right = secondary:toClient()
+        else
+            openSecondary[source] = nil
+        end
     else
         openSecondary[source] = nil
     end
@@ -137,6 +189,7 @@ lib.callback.register('lk_inv:swap', function(source, data)
         if not dropId then return false end
 
         from:removeFromSlot(data.fromSlot, count)
+        pushSlots(from, { data.fromSlot })
         return true
     end
 
@@ -145,13 +198,18 @@ lib.callback.register('lk_inv:swap', function(source, data)
     if not from or not to then return false end
 
     local ok = Transfer.move(from, data.fromSlot, to, data.toSlot, data.count)
+    if not ok then return false end
+
+    -- Keep every viewer of both containers in sync.
+    pushSlots(from, { data.fromSlot })
+    pushSlots(to, { data.toSlot })
 
     -- Clean up emptied drops
-    if ok and from.type == 'drop' and not next(from.items) then
+    if from.type == 'drop' and not next(from.items) then
         Drops.remove(from.id)
     end
 
-    return ok
+    return true
 end)
 
 lib.callback.register('lk_inv:useItem', function(source, slotId)
@@ -168,6 +226,8 @@ lib.callback.register('lk_inv:useItem', function(source, slotId)
     -- Consumables (non-weapon) decrement by one on use.
     if not def.weapon then
         inv:removeFromSlot(slotId, 1)
+        pushSlots(inv, { slotId })
+        notify(source, slot.name, 'ui_removed', 1)
     end
 
     return true
@@ -194,7 +254,17 @@ lib.callback.register('lk_inv:give', function(source, data)
 end)
 
 RegisterNetEvent('lk_inv:closeInventory', function()
-    openSecondary[source] = nil
+    local src = source
+    local inv = Inventory.get(src)
+    if inv then inv:removeViewer(src) end
+
+    local secondaryId = openSecondary[src]
+    if secondaryId then
+        local secondary = Inventory.get(secondaryId)
+        if secondary then secondary:removeViewer(src) end
+    end
+
+    openSecondary[src] = nil
 end)
 
 ----------------------------------------------------------------------
@@ -203,12 +273,29 @@ end)
 
 exports('AddItem', function(source, name, count, metadata)
     local inv = Inventory.get(source)
-    return inv and inv:addItem(name, count, metadata) or false
+    if not inv then return false end
+
+    -- Capture which slot ends up changed so open viewers refresh live.
+    local before = inv:findStack(name, metadata) or inv:firstFree()
+    local ok = inv:addItem(name, count, metadata)
+    if ok then
+        if before then pushSlots(inv, { before }) end
+        notify(source, name, 'ui_added', count or 1)
+    end
+    return ok
 end)
 
 exports('RemoveItem', function(source, slotId, count)
     local inv = Inventory.get(source)
-    return inv and inv:removeFromSlot(slotId, count) or false
+    if not inv then return false end
+
+    local slot = inv.items[slotId]
+    local ok = inv:removeFromSlot(slotId, count)
+    if ok then
+        pushSlots(inv, { slotId })
+        if slot then notify(source, slot.name, 'ui_removed', count or slot.count) end
+    end
+    return ok
 end)
 
 exports('GetInventory', function(source)

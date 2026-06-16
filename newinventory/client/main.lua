@@ -73,6 +73,19 @@ if Config.open.keybind and Config.open.keybind ~= '' then
     RegisterKeyMapping(Config.open.command, 'Open inventory', 'keyboard', Config.open.keybind)
 end
 
+-- Hotbar quick-use: number keys 1-5 use the item in that slot while the
+-- inventory is closed, and flash the hotbar HUD.
+for i = 1, 5 do
+    local cmd = ('lk_inv_hotbar%d'):format(i)
+    RegisterCommand(cmd, function()
+        if Client.open or not Client.uiLoaded then return end
+        SendNUIMessage({ action = 'toggleHotbar' })
+        SendNUIMessage({ action = 'setActiveHotbarSlot', data = i })
+        lib.callback('lk_inv:useItem', false, function() end, i)
+    end, false)
+    RegisterKeyMapping(cmd, ('Use hotbar slot %d'):format(i), 'keyboard', tostring(i))
+end
+
 -- Game-side close on ESC / Backspace (reliable under NUI focus, unlike relying
 -- only on the browser keydown).
 CreateThread(function()

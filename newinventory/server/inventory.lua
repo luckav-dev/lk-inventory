@@ -79,6 +79,8 @@ function Inventory.create(id, opts)
         maxWeight = opts.maxWeight or Config.playerWeight,
         weight    = weight,
         items     = items,
+        persist   = opts.persist == true,
+        viewers   = {},
         dirty     = false,
     }, Inventory)
 
@@ -188,6 +190,28 @@ function Inventory:removeFromSlot(slotId, count)
     self:recalcWeight()
     self.dirty = true
     return true
+end
+
+--- The inventory key the NUI uses to route refresh payloads ('player' for the
+--- viewer's own inventory, otherwise the container id).
+function Inventory:clientKey()
+    return self.type == 'player' and 'player' or self.id
+end
+
+--- Refresh payload for a single slot (empty slots send just the slot number).
+function Inventory:slotPayload(slotId)
+    return {
+        item = self.items[slotId] or { slot = slotId },
+        inventory = self:clientKey(),
+    }
+end
+
+function Inventory:addViewer(source)
+    self.viewers[source] = true
+end
+
+function Inventory:removeViewer(source)
+    self.viewers[source] = nil
 end
 
 --- Serialise to the shape the NUI expects.

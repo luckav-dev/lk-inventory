@@ -28,7 +28,8 @@ ensure lk_inv
 ```
 Open with `/inv` or the `TAB` keybind (configurable in `config/config.lua`).
 
-## What works now (Phase 1)
+## What works now
+**Phase 1 — core**
 - Server-authoritative slot model with weight + stacking (`server/inventory.lua`)
 - Move / split / stack / swap between containers (`server/transfer.lua`)
 - Persistence with its own schema (`server/db.lua`, table `lk_inventories`)
@@ -40,6 +41,16 @@ Open with `/inv` or the `TAB` keybind (configurable in `config/config.lua`).
   use a configured prop. Walk up and press **E** to open the drop.
   (`server/drops.lua` + `client/drops.lua`)
 
+**Phase 2 — containers & live sync**
+- **Stashes**: persistent shared storage, defined in `config/stashes.lua` or via
+  `exports.lk_inv:RegisterStash`, opened by world points (press **E**) or
+  `exports.lk_inv:OpenStash(id)`. Loaded on demand, saved on change.
+- **Live multi-viewer sync**: two players in the same stash see each other's
+  moves instantly; external `AddItem`/`RemoveItem` reflect live
+  (`lk_inv:refresh`).
+- **Item notifications** on add/remove/use (`lk_inv:notify`).
+- **Hotbar**: number keys **1–5** quick-use items while the inventory is closed.
+
 ## NUI protocol
 The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 `setupInventory`, `refreshSlots`, `itemNotify`, … and answers the UI's
@@ -47,7 +58,8 @@ The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 `client/nui.lua`.
 
 ## Roadmap
-- **Phase 2** — stashes, trunk/glovebox, containers (bags inside bags)
+- **Phase 2 (cont.)** — trunk/glovebox, containers (bags inside bags), group/job
+  access on stashes
 - **Phase 3** — shops, crafting benches, weapon attachments/ammo/durability
 - **Phase 4** — framework bridges parity (ESX/Qbox), anti-exploit hardening
 - **Advanced realism (planned)** — weight affecting stamina/movement, item
