@@ -3,6 +3,7 @@
   import { performCraft } from '../lib/actions';
   import { fetchNui } from '../lib/nui';
   import { getItemLabel, getItemUrl, inventoryVisible, isSlotWithItem, items, leftInventory, rightInventory } from '../stores/state';
+  import { t } from '../lib/i18n';
   import type { SlotWithItem } from '../types';
   import backpackIcon from '../../assets/Icon2@2x.png';
 
@@ -66,8 +67,8 @@
       <div class="crafting-header-title">
           <span class="crafting-backpack-icon" style="-webkit-mask-image: url({backpackIcon}); mask-image: url({backpackIcon});"></span>
         <div class="crafting-header-text">
-          <h2>{$rightInventory.label || 'MESA DE CRAFTEO Y PROCESADO'}</h2>
-          <span>Crea y ensambla nuevos objetos con tus materiales</span>
+          <h2>{$rightInventory.label || $t('ui_crafting_title', 'Crafting & Processing Bench')}</h2>
+          <span>{$t('ui_crafting_subtitle', 'Create and assemble new items with your materials')}</span>
         </div>
       </div>
       <button class="close-crafting-btn" type="button" on:click={closeCrafting}>X</button>
@@ -75,7 +76,7 @@
 
     <div class="crafting-standalone-body">
       <div class="crafting-standalone-left">
-        <span class="section-title">RECETAS DISPONIBLES</span>
+        <span class="section-title">{$t('ui_available_recipes', 'Available Recipes')}</span>
         <div class="recipe-list">
           {#each recipes as recipe}
             <button class="recipe-item" class:active={selected?.slot === recipe.slot} type="button" on:click={() => (selected = recipe)}>
@@ -96,11 +97,11 @@
               <h3>{getItemLabel(selected)}</h3>
               <span class="recipe-time-badge">{formatDuration(selected.duration)}</span>
             </div>
-            <p>{selected.metadata?.description || $items[selected.name]?.description || 'Receta disponible para fabricar.'}</p>
+            <p>{selected.metadata?.description || $items[selected.name]?.description || $t('ui_recipe_available', 'Recipe available to craft.')}</p>
           </div>
 
           <div class="materials-section">
-            <span class="section-title">MATERIALES REQUERIDOS</span>
+            <span class="section-title">{$t('ui_required_materials', 'Required Materials')}</span>
             <div class="materials-list">
               {#each ingredients as [name, count]}
                 <div class="material-row">
@@ -126,9 +127,9 @@
               <div class="crafting-progress-bar">
                 <div class="crafting-progress-fill" style={`width: ${progress}%;`}></div>
               </div>
-              <span id="crafting-progress-text">Fabricando... {Math.floor(progress)}%</span>
+              <span id="crafting-progress-text">{$t('ui_crafting_progress', 'Crafting...')} {Math.floor(progress)}%</span>
             </div>
-            <button class="craft-btn" type="button" disabled={!canCraft || crafting} on:click={craft}>INICIAR MONTAJE</button>
+            <button class="craft-btn" type="button" disabled={!canCraft || crafting} on:click={craft}>{$t('ui_start_assembly', 'Start Assembly').toUpperCase()}</button>
           </div>
         {/if}
       </div>

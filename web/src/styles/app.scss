@@ -91,9 +91,11 @@ body {
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  background:
-    radial-gradient(circle at 50% 45%, rgba(var(--primary-red-rgb), 0.12), rgba(0, 0, 0, 0.08) 32%, rgba(0, 0, 0, 0.82) 78%),
-    linear-gradient(135deg, #101010, #020202 68%);
+  /* In-game the GTA screen blur (TriggerScreenblurFadeIn, applied client-side)
+     shows through the NUI. Painting an opaque colour here would black out the
+     game behind the inventory, so keep this layer transparent with only a faint
+     red vignette. The browser mockup image is set in the body.is-browser rule. */
+  background: radial-gradient(circle at 50% 45%, rgba(var(--primary-red-rgb), 0.10), transparent 60%);
   background-size: cover;
   background-position: center;
   z-index: -2;
@@ -103,9 +105,10 @@ body {
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
+  /* Light dim so the blurred game stays visible behind the UI instead of
+     turning fully black. */
   background:
-    radial-gradient(circle at 50% 45%, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.85) 85%),
-    linear-gradient(180deg, rgba(13, 13, 13, 0.25) 0%, rgba(5, 5, 5, 0.5) 100%);
+    radial-gradient(circle at 50% 45%, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.55) 90%);
   z-index: -1;
 }
 

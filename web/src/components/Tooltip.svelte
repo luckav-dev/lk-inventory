@@ -3,6 +3,7 @@
   import { marked } from 'marked';
   import { formatWeight } from '../lib/format';
   import { additionalMetadata, getItemLabel, getItemUrl, items, tooltip } from '../stores/state';
+  import { t } from '../lib/i18n';
 
   $: tip = $tooltip;
   $: item = tip?.item;
@@ -32,22 +33,22 @@
 
     <div class="tooltip-meta">
       {#if item.weight}
-        <p>Peso: {formatWeight(item.weight)}</p>
+        <p>{$t('ui_weight', 'Weight')}: {formatWeight(item.weight)}</p>
       {/if}
       {#if item.durability !== undefined}
-        <p>Durabilidad: {Math.trunc(item.durability)}%</p>
+        <p>{$t('ui_durability', 'Durability')}: {Math.trunc(item.durability)}%</p>
       {/if}
       {#if item.metadata?.ammo !== undefined}
-        <p>Municion: {item.metadata.ammo}</p>
+        <p>{$t('ui_ammo', 'Ammo')}: {item.metadata.ammo}</p>
       {/if}
       {#if itemData?.ammoName && $items[itemData.ammoName]}
-        <p>Tipo: {$items[itemData.ammoName]?.label}</p>
+        <p>{$t('ui_type', 'Type')}: {$items[itemData.ammoName]?.label}</p>
       {/if}
       {#if item.metadata?.serial}
-        <p>Serie: {item.metadata.serial}</p>
+        <p>{$t('ui_serial', 'Serial number')}: {item.metadata.serial}</p>
       {/if}
       {#if item.metadata?.components?.length}
-        <p>Componentes: {componentLabels}</p>
+        <p>{$t('ui_components', 'Components')}: {componentLabels}</p>
       {/if}
       {#each $additionalMetadata as meta}
         {#if item.metadata?.[meta.metadata]}

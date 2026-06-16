@@ -1503,6 +1503,14 @@ RegisterNetEvent('ox_inventory:setPlayerInventory', function(currentDrops, inven
 			DisableAllControlActions(0)
 			HideHudAndRadarThisFrame()
 
+			-- Close on ESC/Backspace from the game side. Relying only on the NUI
+			-- keydown is unreliable in FiveM (CEF doesn't always receive the key
+			-- while focus is kept), so detect the disabled control here too.
+			-- 200 = INPUT_FRONTEND_PAUSE_ALTERNATE (ESC), 177 = INPUT_FRONTEND_CANCEL (Backspace)
+			if IsDisabledControlJustReleased(0, 200) or IsDisabledControlJustReleased(0, 177) then
+				return client.closeInventory()
+			end
+
 			for i = 1, #EnableKeys do
 				EnableControlAction(0, EnableKeys[i], true)
 			end

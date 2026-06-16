@@ -5,9 +5,9 @@ local savedClothing = {}
 local function playClothingAnim(dict, name, duration)
 	lib.requestAnimDict(dict)
 	TaskPlayAnim(cache.ped, dict, name, 8.0, 3.0, duration, 49, 0, false, false, false)
-	RemoveAnimDict(dict)
 	Wait(duration)
 	ClearPedTasks(cache.ped)
+	RemoveAnimDict(dict)
 end
 
 local function togglePedProp(propId, typeName, animDict, animName, animDuration)
@@ -109,7 +109,20 @@ local function togglePedClothing(type)
 	end
 end
 
+local toggling = false
+
 RegisterNUICallback('toggleClothing', function(data, cb)
-	togglePedClothing(data.type)
+	-- Acknowledge the callback immediately so the NUI fetch promise resolves and
+	-- the UI stays responsive; the toggle plays an animation that blocks for up
+	-- to ~1.2s. A guard prevents overlapping toggles from corrupting savedClothing.
 	cb(1)
+
+	if toggling or type(data) ~= 'table' or not data.type then return end
+
+	toggling = true
+
+	CreateThread(function()
+		togglePedClothing(data.type)
+		toggling = false
+	end)
 end)
