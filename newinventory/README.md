@@ -60,6 +60,11 @@ Open with `/inv` or the `TAB` keybind (configurable in `config/config.lua`).
   plate. Press **H** (configurable) to open the glovebox when seated, or the
   nearest unlocked vehicle's trunk on foot. The server validates proximity by
   network id before opening (anti-exploit).
+- **Crafting**: benches defined in `config/crafting.lua` or via
+  `exports.lk_inv:RegisterCraftingBench`, opened by world points (press **E**)
+  or `exports.lk_inv:OpenCraftingBench(id)`. Recipes show ingredients,
+  duration and a live "can craft" check; the server validates ingredients +
+  weight, consumes them and grants the result.
 
 ## NUI protocol
 The backend speaks the exact contract the Svelte UI expects: it sends `init`,
@@ -70,8 +75,8 @@ The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 ## Roadmap
 - **Phase 2 (cont.)** — containers (bags inside bags), group/job access on
   stashes
-- **Phase 3 (cont.)** — crafting benches, weapon attachments/ammo/durability,
-  account-money bridge (sync framework cash with the `money` item)
+- **Phase 3 (cont.)** — weapon attachments/ammo/durability, account-money
+  bridge (sync framework cash with the `money` item)
 - **Phase 4** — framework bridges parity (ESX/Qbox), anti-exploit hardening
 - **Advanced realism (planned)** — weight affecting stamina/movement, item
   degradation over time, dropped-item physics, inspect/3D item view, holstering

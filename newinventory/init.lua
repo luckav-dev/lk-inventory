@@ -14,4 +14,5 @@ else
     require 'client.stashes'
     require 'client.shops'
     require 'client.vehicles'
+    require 'client.crafting'
 end

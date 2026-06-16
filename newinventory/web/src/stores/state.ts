@@ -38,6 +38,20 @@ export const pinUnlocks = writable<Record<string, boolean>>({});
 export const pinState = writable<{ inventoryId: string | number; required: boolean; unlocked: boolean; error?: string } | null>(null);
 export const weaponModal = writable<{ item: SlotWithItem; slot: number } | null>(null);
 
+// Keep per-item totals (items[name].count) in sync with the player's holdings,
+// so crafting ingredient checks, hotbar counts and give amounts reflect what the
+// player actually carries. Driven purely from the left (player) inventory.
+leftInventory.subscribe((inv) => {
+  items.update((map) => {
+    const next: Record<string, ItemData> = {};
+    for (const key in map) next[key] = { ...map[key]!, count: 0 };
+    for (const slot of inv.items) {
+      if (slot.name && next[slot.name]) next[slot.name]!.count += slot.count || 0;
+    }
+    return next;
+  });
+});
+
 let hotbarTimer: number | undefined;
 let notificationId = 1;
 

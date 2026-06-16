@@ -8,6 +8,7 @@ local Transfer  = require 'server.transfer'
 local Drops     = require 'server.drops'
 local Stashes   = require 'server.stashes'
 local Shops     = require 'server.shops'
+local Crafting  = require 'server.crafting'
 
 -- source -> ownerId, and source -> currently open secondary inventory id
 local owners = {}
@@ -35,29 +36,29 @@ local function notify(source, name, kind, count)
         { { name = name, label = def and def.label or name }, kind, count })
 end
 
---- Money is represented as the in-inventory `money` item.
-local function moneyCount(inv)
+--- Total count of `name` carried across all slots (money is the `money` item).
+local function itemCount(inv, name)
     local total = 0
     for _, slot in pairs(inv.items) do
-        if slot.name == 'money' then total = total + slot.count end
+        if slot.name == name then total = total + slot.count end
     end
     return total
 end
 
---- Deduct `amount` of money across the player's money slots.
+--- Remove `amount` of `name` across slots, appending changed slot ids to `acc`.
 --- @return integer[] changed slot ids
-local function removeMoney(inv, amount)
-    local changed = {}
+local function removeByName(inv, name, amount, acc)
+    acc = acc or {}
     for slotId, slot in pairs(inv.items) do
         if amount <= 0 then break end
-        if slot.name == 'money' then
+        if slot.name == name then
             local take = math.min(slot.count, amount)
             inv:removeFromSlot(slotId, take)
             amount = amount - take
-            changed[#changed + 1] = slotId
+            acc[#acc + 1] = slotId
         end
     end
-    return changed
+    return acc
 end
 
 --- Item registry in the shape the NUI expects.
@@ -184,6 +185,7 @@ lib.callback.register('lk_inv:open', function(source, secondaryId)
         local secondary = Inventory.get(secondaryId)
             or Stashes.ensure(secondaryId)
             or Shops.ensure(secondaryId)
+            or Crafting.ensure(secondaryId)
         if secondary then
             openSecondary[source] = secondaryId
             secondary:addViewer(source)
@@ -257,10 +259,10 @@ lib.callback.register('lk_inv:buyItem', function(source, data)
     local price = (shopSlot.price or 0) * count
     local buyWeight = Inventory.slotWeight(shopSlot.name, count)
 
-    if moneyCount(player) < price then return false end
+    if itemCount(player, 'money') < price then return false end
     if not player:canHold(buyWeight) then return false end
 
-    local moneyChanged = removeMoney(player, price)
+    local moneyChanged = removeByName(player, 'money', price)
     local target = player:findStack(shopSlot.name, {}) or player:firstFree()
     if not target then return false end
 
@@ -269,6 +271,52 @@ lib.callback.register('lk_inv:buyItem', function(source, data)
     pushSlots(player, moneyChanged)
     pushSlots(player, { target })
     notify(source, shopSlot.name, 'ui_added', count)
+    return true
+end)
+
+lib.callback.register('lk_inv:craftItem', function(source, data)
+    if type(data) ~= 'table' then return false end
+
+    local benchId = openSecondary[source]
+    local bench = benchId and Inventory.get(benchId)
+    if not bench or bench.type ~= 'crafting' then return false end
+
+    local recipe = bench.items[data.fromSlot]
+    if not recipe then return false end
+
+    local player = Inventory.get(source)
+    if not player then return false end
+
+    local count = math.max(1, math.floor(data.count or 1))
+    local ingredients = recipe.ingredients or {}
+    local resultCount = (recipe.count or 1) * count
+
+    -- Verify the player has every ingredient.
+    for name, req in pairs(ingredients) do
+        if itemCount(player, name) < req * count then return false end
+    end
+
+    -- Net weight feasibility (ingredients are removed, result is added).
+    local ingWeight = 0
+    for name, req in pairs(ingredients) do
+        ingWeight = ingWeight + Inventory.slotWeight(name, req * count)
+    end
+    local resultWeight = Inventory.slotWeight(recipe.name, resultCount)
+    if player.weight - ingWeight + resultWeight > player.maxWeight then return false end
+
+    -- Consume ingredients, then add the result.
+    local changed = {}
+    for name, req in pairs(ingredients) do
+        removeByName(player, name, req * count, changed)
+    end
+
+    local target = player:findStack(recipe.name, {}) or player:firstFree()
+    if not target then return false end
+    player:addItem(recipe.name, resultCount, {})
+    changed[#changed + 1] = target
+
+    pushSlots(player, changed)
+    notify(source, recipe.name, 'ui_added', resultCount)
     return true
 end)
 
