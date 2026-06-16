@@ -13,4 +13,5 @@ else
     require 'client.drops'
     require 'client.stashes'
     require 'client.shops'
+    require 'client.vehicles'
 end

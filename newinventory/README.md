@@ -56,6 +56,10 @@ Open with `/inv` or the `TAB` keybind (configurable in `config/config.lua`).
   opened by world points (press **E**) or `exports.lk_inv:OpenShop(id)`. Price
   tags render in the UI; buying deducts the `money` item and adds the purchase,
   with weight/funds validation server-side.
+- **Vehicle storage**: persistent **trunk** and **glovebox** keyed by number
+  plate. Press **H** (configurable) to open the glovebox when seated, or the
+  nearest unlocked vehicle's trunk on foot. The server validates proximity by
+  network id before opening (anti-exploit).
 
 ## NUI protocol
 The backend speaks the exact contract the Svelte UI expects: it sends `init`,
@@ -64,8 +68,8 @@ The backend speaks the exact contract the Svelte UI expects: it sends `init`,
 `client/nui.lua`.
 
 ## Roadmap
-- **Phase 2 (cont.)** — trunk/glovebox, containers (bags inside bags), group/job
-  access on stashes
+- **Phase 2 (cont.)** — containers (bags inside bags), group/job access on
+  stashes
 - **Phase 3 (cont.)** — crafting benches, weapon attachments/ammo/durability,
   account-money bridge (sync framework cash with the `money` item)
 - **Phase 4** — framework bridges parity (ESX/Qbox), anti-exploit hardening

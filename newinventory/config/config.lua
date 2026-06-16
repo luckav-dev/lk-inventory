@@ -28,6 +28,16 @@ return {
         useTarget  = false,
     },
 
+    -- Vehicle storage (persisted per number plate)
+    vehicles = {
+        key          = 'H',     -- opens glovebox when seated, else nearest trunk
+        trunkSlots   = 40,
+        trunkWeight  = 120000,
+        gloveSlots   = 12,
+        gloveWeight  = 20000,
+        trunkDist    = 4.0,     -- how close to a vehicle (on foot) to open its trunk
+    },
+
     -- How often (ms) dirty inventories are flushed to the database
     saveInterval = 5 * 60 * 1000,
 

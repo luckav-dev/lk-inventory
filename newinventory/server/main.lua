@@ -272,6 +272,42 @@ lib.callback.register('lk_inv:buyItem', function(source, data)
     return true
 end)
 
+--- Validate a vehicle storage request and load the container keyed by plate.
+--- Returns the container id the client should then open, or nil.
+lib.callback.register('lk_inv:prepVehicle', function(source, data)
+    if type(data) ~= 'table' or not data.netId then return nil end
+
+    local entity = NetworkGetEntityFromNetworkId(data.netId)
+    if not entity or entity == 0 or not DoesEntityExist(entity) then return nil end
+
+    -- Anti-exploit: the player must actually be next to the vehicle.
+    local ped = GetPlayerPed(source)
+    if ped == 0 or #(GetEntityCoords(ped) - GetEntityCoords(entity)) > 8.0 then
+        return nil
+    end
+
+    local plate = GetVehicleNumberPlateText(entity)
+    plate = plate and plate:gsub('%s+$', '') or ''
+    if plate == '' then return nil end
+
+    local vtype = data.vtype == 'glovebox' and 'glovebox' or 'trunk'
+    local id = ('%s_%s'):format(vtype, plate)
+
+    if not Inventory.get(id) then
+        Inventory.create(id, {
+            type = vtype,
+            owner = id,
+            label = ('%s %s'):format(vtype == 'trunk' and 'Trunk' or 'Glovebox', plate),
+            slots = vtype == 'trunk' and Config.vehicles.trunkSlots or Config.vehicles.gloveSlots,
+            maxWeight = vtype == 'trunk' and Config.vehicles.trunkWeight or Config.vehicles.gloveWeight,
+            items = Db.load(id, vtype),
+            persist = true,
+        })
+    end
+
+    return id
+end)
+
 lib.callback.register('lk_inv:useItem', function(source, slotId)
     local inv = Inventory.get(source)
     local slot = inv and inv.items[slotId]
