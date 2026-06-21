@@ -4,6 +4,7 @@
     giveItem,
     removeAmmo,
     removeComponent,
+    throwItem,
     useCustomButton,
     useItem,
   } from '../lib/actions';
@@ -67,6 +68,7 @@
         {/if}
 
         <button class="context-menu-btn" data-action="destroy" type="button" on:click={() => run(() => dropItem(item))}>{$t('ui_drop', 'Drop').toUpperCase()}</button>
+        <button class="context-menu-btn" data-action="throw" type="button" on:click={() => run(() => throwItem(item))}>{$t('ui_throw', 'Throw').toUpperCase()}</button>
 
         {#if item.metadata?.ammo > 0}
           <button class="context-menu-btn" data-action="ammo" type="button" on:click={() => run(() => removeAmmo(item))}>{$t('ui_remove_ammo', 'Remove ammo').toUpperCase()}</button>

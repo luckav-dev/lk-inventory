@@ -1,6 +1,7 @@
 local Client  = require 'client.main'
 local Weapons = require 'client.weapons'
 local Carry   = require 'client.carry'
+local Throw   = require 'client.throw'
 
 --- Find the closest player's server id (used for giving items).
 local function closestPlayer()
@@ -58,6 +59,14 @@ RegisterNUICallback('useItem', function(slot, cb)
         if result.repair then Weapons.repair(result.repair); return cb(true) end
     end
     cb(result or false)
+end)
+
+RegisterNUICallback('throwItem', function(data, cb)
+    cb(1)
+    CreateThread(function()
+        local result = lib.callback.await('lk_inv:throwItem', false, data)
+        if type(result) == 'table' and result.render then Throw.start(result) end
+    end)
 end)
 
 RegisterNUICallback('giveItem', function(data, cb)

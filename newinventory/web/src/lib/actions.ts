@@ -317,6 +317,11 @@ export async function dropItem(slot: SlotWithItem) {
   }
 }
 
+export function throwItem(slot: SlotWithItem) {
+  closeFloatingUi();
+  void fetchNui('throwItem', { slot: slot.slot });
+}
+
 export function removeAmmo(slot: SlotWithItem) {
   void fetchNui('removeAmmo', slot.slot);
 }

@@ -49,6 +49,7 @@ local pendingOpen = {}        -- source -> authorized secondary id
 local searchable = {}         -- source -> true when frisk-able (cuffed/hands up)
 local dumpsterSearched = {}   -- dumpster id -> last search time
 local pinUnlocked = {}        -- source -> { stashId -> true }
+local pendingThrow = {}       -- source -> { name, count, metadata } mid-throw
 
 local HIDDEN = { slots = 20, weight = 60000 } -- buried world-stash size
 
@@ -247,6 +248,7 @@ Framework.onDropped(function(source)
     pendingOpen[source] = nil
     searchable[source] = nil
     pinUnlocked[source] = nil
+    pendingThrow[source] = nil
     Security.clear(source)
 end)
 
@@ -738,6 +740,60 @@ lib.callback.register('lk_inv:pickpocket', function(source, targetId)
     notifyClient(source, ('You lifted a %s'):format(pick.name), 'success')
     Logs.action('frisk', source, ('pickpocketed %s from %s'):format(pick.name, targetId))
     return true
+end)
+
+----------------------------------------------------------------------
+-- Throwing items by hand
+----------------------------------------------------------------------
+
+local function itemRender(name)
+    local def = Inventory.itemDef(name)
+    if def and def.weapon then return { weapon = name } end
+    return { model = (def and def.ground) or Config.drops.fallbackModel }
+end
+
+--- Begin a throw: remove one item now (atomic, no dupe) and hand the client the
+--- visual data. The drop is created where it lands (lk_inv:throwLand), with a
+--- safety net so the item is never lost if the client never reports a landing.
+lib.callback.register('lk_inv:throwItem', function(source, data)
+    if not Config.throw.enabled then return false end
+    if type(data) ~= 'table' then return false end
+    if not Security.allow(source, 'drop') then return false end
+
+    local inv = Inventory.get(source)
+    local slot = inv and inv.items[data.slot]
+    if not slot then return false end
+
+    local name, meta = slot.name, slot.metadata
+    inv:removeFromSlot(data.slot, 1)
+    pushSlots(inv, { data.slot })
+    pushWeight(source)
+
+    pendingThrow[source] = { name = name, count = 1, metadata = meta }
+
+    SetTimeout(Config.throw.settle + 4000, function()
+        local pending = pendingThrow[source]
+        if not pending then return end
+        pendingThrow[source] = nil
+        local ped = GetPlayerPed(source)
+        if ped ~= 0 then
+            Drops.create(GetEntityCoords(ped), pending.name, pending.count, pending.metadata, source)
+        end
+    end)
+
+    return { name = name, metadata = meta, render = itemRender(name) }
+end)
+
+RegisterNetEvent('lk_inv:throwLand', function(coords)
+    local src = source
+    local pending = pendingThrow[src]
+    if not pending then return end
+    if type(coords) ~= 'vector3' and type(coords) ~= 'table' then return end
+
+    pendingThrow[src] = nil
+    Drops.create(vec3(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0),
+        pending.name, pending.count, pending.metadata, src)
+    Logs.action('drop', src, ('threw %s'):format(pending.name))
 end)
 
 lib.callback.register('lk_inv:useItem', function(source, slotId)

@@ -12,6 +12,7 @@ else
     require 'client.visuals'
     require 'client.weapons'
     require 'client.carry'
+    require 'client.throw'
     require 'client.nui'
     require 'client.sync'
     require 'client.drops'

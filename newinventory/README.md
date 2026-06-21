@@ -44,6 +44,9 @@ needs a live server.
   and a worn backpack appears when you carry a bag (the equipped gun hides).
 - **Carry heavy items in hand** — a `box`-type item is picked up with a carry
   animation, slows you, blocks sprint/weapons, and is set down as a real object.
+- **Throw items by hand** — context-menu *Throw*: the item shows in your hand,
+  you play a grenade/snowball-style animation, and it flies and lands as a real
+  ground object where it falls (`client/throw.lua`, `config.throw`).
 - **Frisk / rob players** — search a downed or hands-up player's inventory, with
   a server-side authorization gate so you can't open arbitrary inventories.
 - **Searchable dumpsters** — rummage configured world props for random loot

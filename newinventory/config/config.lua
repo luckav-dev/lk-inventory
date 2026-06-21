@@ -84,6 +84,17 @@ return {
         maxPenalty = 0.40, -- up to -40% engine torque at a full trunk
     },
 
+    -- Throw an item by hand (grenade/snowball-style): the item shows in your
+    -- hand, you play a throwing animation, and it flies and lands as a real
+    -- ground object. Animation dict/clip are tunable per server.
+    throw = {
+        enabled = true,
+        anim    = { dict = 'weapons@projectile@', clip = 'throw_m_fb_stand', release = 650 },
+        force   = 15.0, -- horizontal throw speed
+        upForce = 4.5,  -- vertical arc
+        settle  = 1300, -- ms to wait for it to land before creating the drop
+    },
+
     -- Visible equipment on the body: holstered weapons and a worn backpack.
     -- Bone ids and offsets are approximate — tune per server.
     visuals = {
