@@ -1,4 +1,5 @@
 local Config = require 'config.config'
+local Items  = require 'config.items'
 
 --- Throw an item by hand: the item shows in your hand, you play a throwing
 --- animation (grenade/snowball style), then it's released as a flying physics
@@ -6,6 +7,9 @@ local Config = require 'config.config'
 local Throw = {}
 
 local active = false
+
+-- Default hand placement; items can override via `hold = { pos, rot }`.
+local DEFAULT_HOLD = { pos = vec3(0.12, 0.02, 0.0), rot = vec3(0.0, 0.0, 0.0) }
 
 local function makeProp(render)
     if render.weapon then
@@ -32,11 +36,14 @@ function Throw.start(data)
     local cfg = Config.throw
     local ped = cache.ped
 
-    -- Item visible in the right hand.
+    -- Item visible in the right hand, using its per-item hold offset.
     local obj = makeProp(data.render)
     if not obj or obj == 0 then active = false; return end
+    local hold = (Items[data.name] and Items[data.name].hold) or DEFAULT_HOLD
     local bone = GetPedBoneIndex(ped, 28422) -- PH_R_Hand
-    AttachEntityToEntity(obj, ped, bone, 0.12, 0.02, 0.0, 0.0, 0.0, 0.0,
+    AttachEntityToEntity(obj, ped, bone,
+        hold.pos.x, hold.pos.y, hold.pos.z,
+        hold.rot.x, hold.rot.y, hold.rot.z,
         true, true, false, true, 1, true)
 
     -- Throwing animation (tunable in config).

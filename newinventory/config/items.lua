@@ -8,16 +8,22 @@
 ---   usable      exposes a "Use" action (server use handler optional)
 ---   description tooltip text
 ---   image       custom image filename (defaults to "<name>.png")
----   ground      world model spawned when the item is dropped (realism).
----               Weapons fall back to their own weapon object automatically.
+---   ground      world model spawned when the item is dropped or thrown
+---               (realism). Weapons use their own weapon object automatically.
+---   hold        optional { pos = vec3, rot = vec3 } offset for how the prop
+---               sits in the hand when thrown/carried (props have different
+---               origins; tune per item). Defaults to a sensible value.
 ---   degrade     minutes until durability reaches 0 (optional)
 ---
---- This is intentionally a small starter set. Add your own freely.
+--- Every item should define `ground` so it shows correctly in the hand and on
+--- the floor. Items without one fall back to a generic box. Small starter set —
+--- add your own freely.
 return {
     water = {
         label = 'Water', weight = 500, stack = true, close = false, usable = true,
         description = 'A refreshing bottle of water.',
         ground = 'prop_ld_flow_bottle',
+        hold = { pos = vec3(0.13, 0.02, -0.02), rot = vec3(0.0, 0.0, 0.0) },
         effects = { thirst = 25 }, -- relayed to a status/metabolism resource
     },
     burger = {
@@ -47,6 +53,7 @@ return {
     },
     money = {
         label = 'Cash', weight = 0, stack = true, close = false, usable = false,
+        ground = 'prop_cash_pile_01',
     },
     lockpick = {
         label = 'Lockpick', weight = 120, stack = true, close = true, usable = true,
