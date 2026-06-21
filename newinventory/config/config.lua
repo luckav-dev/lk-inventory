@@ -152,7 +152,7 @@ return {
     dupe = {
         enabled    = true,
         interval   = 60 * 1000,
-        autoRemove = true,
+        autoRemove = false, -- log/flag only by default; enable to delete copies
     },
 
     -- Periodic inventory snapshots for anti-dupe rollback.

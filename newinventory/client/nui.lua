@@ -86,8 +86,11 @@ end)
 RegisterNUICallback('giveItem', function(data, cb)
     local target = closestPlayer()
     if not target then return cb(false) end
+    -- Lua treats 0 as truthy, so guard the count explicitly.
+    local count = data and tonumber(data.count) or 1
+    if count < 1 then count = 1 end
     cb(lib.callback.await('lk_inv:give', false, {
-        slot = data and data.slot, count = (data and data.count) or 1, target = target,
+        slot = data and data.slot, count = count, target = target,
     }) or false)
 end)
 

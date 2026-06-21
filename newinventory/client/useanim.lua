@@ -8,6 +8,7 @@ local UseAnim = {}
 
 local DEFAULT_HOLD = { pos = vec3(0.12, 0.02, 0.0), rot = vec3(0.0, 0.0, 0.0) }
 local busy = false
+local currentProp -- prop attached during a use animation (for cleanup on stop)
 
 local function attachProp(model, hold)
     local hash = joaat(model)
@@ -37,10 +38,9 @@ function UseAnim.play(name)
     busy = true
 
     local ped = cache.ped
-    local prop
     if not anim.noProp then
         local model = anim.prop or def.ground
-        if model then prop = attachProp(model, def.hold or DEFAULT_HOLD) end
+        if model then currentProp = attachProp(model, def.hold or DEFAULT_HOLD) end
     end
 
     lib.requestAnimDict(anim.dict)
@@ -51,9 +51,17 @@ function UseAnim.play(name)
 
     ClearPedTasks(ped)
     RemoveAnimDict(anim.dict)
-    if prop and DoesEntityExist(prop) then DeleteEntity(prop) end
+    if currentProp and DoesEntityExist(currentProp) then DeleteEntity(currentProp) end
+    currentProp = nil
 
     busy = false
 end
+
+AddEventHandler('onResourceStop', function(res)
+    if res == GetCurrentResourceName() and currentProp and DoesEntityExist(currentProp) then
+        DeleteEntity(currentProp)
+        ClearPedTasks(cache.ped)
+    end
+end)
 
 return UseAnim

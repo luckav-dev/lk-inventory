@@ -39,21 +39,25 @@ end
 local function kickDrop(point)
     local obj = point.entity
     if not obj or not DoesEntityExist(obj) then return end
-
-    local ped = cache.ped
-    lib.requestAnimDict('melee@unarmed@streamed_core')
-    TaskPlayAnim(ped, 'melee@unarmed@streamed_core', 'kick_a', 4.0, -4.0, 600, 48, 0, false, false, false)
     if point.showing then lib.hideTextUI(); point.showing = false end
 
-    Wait(120)
-    local fwd = GetEntityForwardVector(ped)
-    local force = Config.drops.kickForce
-    FreezeEntityPosition(obj, false)
-    ActivatePhysics(obj)
-    ApplyForceToEntity(obj, 1, fwd.x * force, fwd.y * force, 1.5, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
-    if _G.LkSound then LkSound.play('kick') end
-
+    -- Runs in its own thread so the shared lib.points loop is never blocked by
+    -- the Waits below (otherwise all nearby points stall while a kick plays).
     CreateThread(function()
+        local ped = cache.ped
+        lib.requestAnimDict('melee@unarmed@streamed_core')
+        TaskPlayAnim(ped, 'melee@unarmed@streamed_core', 'kick_a', 4.0, -4.0, 600, 48, 0, false, false, false)
+
+        Wait(120)
+        FreezeEntityPosition(obj, false)
+        ActivatePhysics(obj)
+        Wait(0) -- let physics wake before the impulse registers
+
+        local fwd = GetEntityForwardVector(ped)
+        local force = Config.drops.kickForce
+        ApplyForceToEntity(obj, 1, fwd.x * force, fwd.y * force, 1.5, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+        if _G.LkSound then LkSound.play('kick') end
+
         Wait(1200)
         ClearPedTasks(ped)
         RemoveAnimDict('melee@unarmed@streamed_core')

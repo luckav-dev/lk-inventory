@@ -1,4 +1,5 @@
 local Inventory = require 'server.inventory'
+local Utils     = require 'shared.utils'
 
 --- Server-authoritative slot transfer between two inventories.
 --- Handles move into empty, stack onto same item, split, and swap.
@@ -25,6 +26,10 @@ function Transfer.move(from, fromSlotId, to, toSlotId, count)
 
     local def = Inventory.itemDef(fromSlot.name)
     if not def then return false end
+
+    -- Non-stackable items can't be split (would create two slots sharing one
+    -- unique instance / metadata).
+    if not def.stack and count ~= fromSlot.count then return false end
 
     -- Containers can't be nested inside another container (and never inside
     -- themselves) — this prevents weight-propagation cycles / infinite recursion.
@@ -72,12 +77,15 @@ function Transfer.move(from, fromSlotId, to, toSlotId, count)
     if not toSlot then
         if from ~= to and not to:canHold(moveWeight) then return false end
 
+        -- On a partial move the source slot survives, so the destination needs
+        -- its own metadata table (never share one instance across two slots).
+        local partial = count < fromSlot.count
         to.items[toSlotId] = {
             slot = toSlotId,
             name = fromSlot.name,
             count = count,
             weight = moveWeight,
-            metadata = fromSlot.metadata,
+            metadata = partial and Utils.clone(fromSlot.metadata) or fromSlot.metadata,
         }
         from:removeFromSlot(fromSlotId, count)
         to:recalcWeight(); to.dirty = true

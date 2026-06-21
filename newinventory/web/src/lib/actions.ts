@@ -267,7 +267,7 @@ export function useItem(slot: Slot) {
 }
 
 export function giveItem(slot: Slot) {
-  if (slot.name) void fetchNui('giveItem', { slot: slot.slot, count: get(itemAmount) });
+  if (slot.name) void fetchNui('giveItem', { slot: slot.slot, count: get(itemAmount) || 1 });
 }
 
 export async function dropItem(slot: SlotWithItem) {

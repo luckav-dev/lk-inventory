@@ -94,11 +94,15 @@ touching it.
 - **Notifications are pluggable** (`config.notify`): ox_lib if present, else our
   own themed NUI toasts, or your own system via `lk_inv:notification`. ox_lib is
   still required for callbacks/points, but its notification *style* is optional.
-- **ox_inventory-compatible exports** (`config.compat.oxinventory`) expose the
-  common ox_inventory API (`AddItem`, `RemoveItem`, `GetItemCount`, `Search`,
-  `Items`, `CanCarryItem`, `GetInventory`) so the existing script ecosystem
-  works unchanged. **Auto-disabled when a real `ox_inventory` resource exists**,
-  so there's never an export collision.
+- **Drop-in for ox_inventory** — the manifest has `provide 'ox_inventory'`, so
+  `GetResourceState('ox_inventory')` returns *started* and any script with
+  `dependency 'ox_inventory'` is satisfied. The compat layer
+  (`config.compat.oxinventory`) registers the common ox_inventory API on the
+  **server** (`AddItem`, `RemoveItem`, `GetItem`, `GetItemCount`, `Search`,
+  `Items`, `CanCarryItem`, `GetInventory`, `GetSlot`, …) and **client**
+  (`GetItemCount`, `Search`, `GetPlayerItems`, `openInventory`, `closeInventory`)
+  under the `ox_inventory` export name. **Existing scripts work with no edits.**
+  Don't run a real `ox_inventory` alongside it.
 - **Everything is namespaced** (`lk_inv:*` events, `lk_inv` exports) — no clash
   with other resources.
 - **Other-script concerns stay external**: metabolism/status (`lk_inv:useEffects`),

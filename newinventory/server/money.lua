@@ -123,4 +123,16 @@ function Money.chargeAccount(source, amount, account)
     return Money.charge(source, amount)
 end
 
+--- Give money back (used when a charged purchase couldn't be delivered).
+function Money.refund(source, amount, account)
+    account = account or 'cash'
+    if account == 'bank' or Money.useFramework(source) then
+        Framework.addMoney(source, account, amount)
+        Money.syncItem(source)
+        return
+    end
+    local inv = Inventory.get(source)
+    if inv then inv:addItem('money', amount, {}) end
+end
+
 return Money

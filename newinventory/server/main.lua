@@ -118,13 +118,20 @@ local function visualsFor(inv)
     return { weapons = weapons, bag = bag }
 end
 
---- Send the player's weight ratio (movement penalty) and body visuals.
+--- Send the player's weight ratio (movement penalty), body visuals, and a
+--- name->count map (so client-side ox_inventory-compat exports can read it).
 local function pushWeight(source)
     local inv = Inventory.get(source)
     if not inv then return end
     local ratio = inv.maxWeight > 0 and (inv.weight / inv.maxWeight) or 0
     TriggerClientEvent('lk_inv:weight', source, ratio)
     TriggerClientEvent('lk_inv:visuals', source, visualsFor(inv))
+
+    local counts = {}
+    for _, slot in pairs(inv.items) do
+        counts[slot.name] = (counts[slot.name] or 0) + slot.count
+    end
+    TriggerClientEvent('lk_inv:items', source, counts)
 end
 
 --- When a container's contents change, refresh the holder's container slot and
@@ -548,9 +555,13 @@ lib.callback.register('lk_inv:buyItem', function(source, data)
     if not ok then return false end
 
     local target = player:findStack(shopSlot.name, {}) or player:firstFree()
-    if not target then return false end
-
-    player:addItem(shopSlot.name, count, {})
+    if not target or not player:addItem(shopSlot.name, count, {}) then
+        -- Refund: the player was charged but couldn't receive the item.
+        Money.refund(source, price, account)
+        pushSlots(player, moneyChanged)
+        pushWeight(source)
+        return false
+    end
 
     pushSlots(player, moneyChanged)
     pushSlots(player, { target })
@@ -608,8 +619,12 @@ lib.callback.register('lk_inv:craftItem', function(source, data)
     end
 
     local target = player:findStack(recipe.name, {}) or player:firstFree()
-    if not target then return false end
-    player:addItem(recipe.name, resultCount, {})
+    if not target or not player:addItem(recipe.name, resultCount, {}) then
+        -- Couldn't deliver the result: give the ingredients back.
+        for name, req in pairs(ingredients) do player:addItem(name, req * count, {}) end
+        pushWeight(source)
+        return false
+    end
     changed[#changed + 1] = target
 
     pushSlots(player, changed)
@@ -642,19 +657,26 @@ lib.callback.register('lk_inv:prepVehicle', function(source, data)
     local id = ('%s_%s'):format(vtype, plate)
 
     if not Inventory.get(id) then
-        -- Size depends on the vehicle (class/model sent by the client).
-        local slots, weight = vehicleSpace(tonumber(data.class) or -1,
-            data.model and tostring(data.model):lower() or nil, vtype)
+        -- Derive the class on the server (don't trust the client, or a bike
+        -- could claim a truck-sized trunk); fall back to the client value only
+        -- if the server native is unavailable.
+        local class = GetVehicleClass(entity)
+        if not class or class < 0 then class = tonumber(data.class) or -1 end
+        local model = data.model and tostring(data.model):lower() or nil
+        local slots, weight = vehicleSpace(class, model, vtype)
 
-        Inventory.create(id, {
-            type = vtype,
-            owner = id,
-            label = ('%s %s'):format(vtype == 'trunk' and 'Trunk' or 'Glovebox', plate),
-            slots = slots,
-            maxWeight = weight,
-            items = Db.load(id, vtype),
-            persist = true,
-        })
+        local stored = Db.load(id, vtype) -- yields; re-check before creating
+        if not Inventory.get(id) then
+            Inventory.create(id, {
+                type = vtype,
+                owner = id,
+                label = ('%s %s'):format(vtype == 'trunk' and 'Trunk' or 'Glovebox', plate),
+                slots = slots,
+                maxWeight = weight,
+                items = stored,
+                persist = true,
+            })
+        end
     end
 
     authorize(source, id)
@@ -774,10 +796,13 @@ end
 local function ensureHidden(id)
     local inv = Inventory.get(id)
     if inv then return inv end
+    local stored = Db.load(id, 'hidden') -- yields
+    inv = Inventory.get(id)
+    if inv then return inv end
     return Inventory.create(id, {
         type = 'hidden', owner = id, label = 'Stash',
         slots = HIDDEN.slots, maxWeight = HIDDEN.weight,
-        items = Db.load(id, 'hidden'), persist = true,
+        items = stored, persist = true,
     })
 end
 
@@ -801,8 +826,13 @@ end)
 lib.callback.register('lk_inv:searchGround', function(source, coords)
     if type(coords) ~= 'vector3' and type(coords) ~= 'table' then return false end
     local pos = vec3(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
-    local id = cellId(pos)
 
+    -- The player must actually be at the spot (otherwise any buried cache could
+    -- be opened remotely by guessing/replaying coordinates).
+    local ped = GetPlayerPed(source)
+    if ped == 0 or #(GetEntityCoords(ped) - pos) > 3.0 then return false end
+
+    local id = cellId(pos)
     if not Inventory.get(id) and not Db.exists(id, 'hidden') then return false end
 
     ensureHidden(id)
@@ -840,13 +870,15 @@ lib.callback.register('lk_inv:pickpocket', function(source, targetId)
     end
     if #candidates == 0 then return false end
 
-    local pick = victim.items[candidates[math.random(#candidates)]]
+    local key = candidates[math.random(#candidates)]
+    local pick = victim.items[key]
     if not thief:canHold(Inventory.slotWeight(pick.name, 1)) then return false end
 
-    thief:addItem(pick.name, 1, pick.metadata)
-    victim:removeFromSlot(pick.slot, 1)
-    pushSlots(thief, { thief:findStack(pick.name, pick.metadata) or pick.slot })
-    pushSlots(victim, { pick.slot })
+    local target = thief:findStack(pick.name, pick.metadata) or thief:firstFree()
+    thief:addItem(pick.name, 1, Utils.clone(pick.metadata))
+    victim:removeFromSlot(key, 1)
+    if target then pushSlots(thief, { target }) end
+    pushSlots(victim, { key })
     pushWeight(source); pushWeight(targetId)
     notifyClient(source, Locale.t('lifted_item', pick.name), 'success')
     Logs.action('frisk', source, ('pickpocketed %s from %s'):format(pick.name, targetId))
@@ -968,14 +1000,10 @@ lib.callback.register('lk_inv:useItem', function(source, slotId)
         return { repair = { slot = slotId } }
     end
 
-    -- Consumable. Relay effects to status/metabolism scripts (we never implement
-    -- hunger/thirst ourselves — that belongs to another resource).
-    TriggerEvent('lk_inv:itemUsed', source, slot.name, slot.metadata)
-    if def.effects then
-        TriggerClientEvent('lk_inv:useEffects', source, slot.name, def.effects)
-    end
-
-    -- Charges: decrement a use, or consume the whole item when none remain.
+    -- Consumable. Consume the item first (so an external listener can't pull the
+    -- slot out from under us), then relay effects to status/metabolism scripts —
+    -- we never implement hunger/thirst ourselves, that belongs to another resource.
+    local usedName = slot.name
     if slot.metadata and slot.metadata.uses and slot.metadata.uses > 1 then
         slot.metadata.uses = slot.metadata.uses - 1
         inv.dirty = true
@@ -983,12 +1011,17 @@ lib.callback.register('lk_inv:useItem', function(source, slotId)
     else
         inv:removeFromSlot(slotId, 1)
         pushSlots(inv, { slotId })
-        notify(source, slot.name, 'ui_removed', 1)
+        notify(source, usedName, 'ui_removed', 1)
     end
 
     pushWeight(source)
+    TriggerEvent('lk_inv:itemUsed', source, usedName, slot.metadata)
+    if def.effects then
+        TriggerClientEvent('lk_inv:useEffects', source, usedName, def.effects)
+    end
+
     -- Tell the client which item was used so it can play the use animation.
-    return { used = slot.name }
+    return { used = usedName }
 end)
 
 --- Repair the equipped weapon with a repair kit (client supplies both slots).
@@ -1089,8 +1122,16 @@ end)
 
 lib.callback.register('lk_inv:give', function(source, data)
     if type(data) ~= 'table' then return false end
+    if not Security.allow(source, 'use') then return false end
+
     local target = data.target and tonumber(data.target)
-    if not target then return false end
+    if not target or target == source then return false end
+
+    -- Both players must be in reach (the target is resolved client-side, so the
+    -- server must not trust it without a distance check).
+    local sPed, tPed = GetPlayerPed(source), GetPlayerPed(target)
+    if sPed == 0 or tPed == 0 then return false end
+    if #(GetEntityCoords(sPed) - GetEntityCoords(tPed)) > 3.0 then return false end
 
     local from = Inventory.get(source)
     local to = Inventory.get(target)
@@ -1109,12 +1150,14 @@ lib.callback.register('lk_inv:give', function(source, data)
         pushSlots(from, Money.syncItem(source))
         pushSlots(to, Money.syncItem(target))
         Logs.action('money', source, ('gave $%d to %s'):format(amount, target))
-    Metrics.inc('money_given')
+        Metrics.inc('money_given')
         return true
     end
 
+    -- Clone metadata so the two inventories never share one table (a partial
+    -- give would otherwise leave both slots aliasing one __uid).
     local before = to:findStack(slot.name, slot.metadata) or to:firstFree()
-    if not to:addItem(slot.name, count, slot.metadata) then return false end
+    if not to:addItem(slot.name, count, Utils.clone(slot.metadata)) then return false end
     from:removeFromSlot(data.slot, count)
 
     pushSlots(from, { data.slot })
@@ -1197,16 +1240,22 @@ exports('GetMoney', function(source)
 end)
 
 ----------------------------------------------------------------------
--- ox_inventory-compatible exports (so the script ecosystem works unchanged).
--- Only registered when there is no real ox_inventory resource, avoiding any
--- export collision. They map the common ox_inventory API to our model.
+-- ox_inventory-compatible exports. Combined with `provide 'ox_inventory'` in
+-- the manifest, the existing script ecosystem (which calls
+-- exports.ox_inventory:...) works against this resource with no edits.
 ----------------------------------------------------------------------
-if Config.compat and Config.compat.oxinventory and GetResourceState('ox_inventory') == 'missing' then
+if Config.compat and Config.compat.oxinventory then
+    -- Register a function under both lk_inv and ox_inventory export names.
     local function oxExport(name, fn)
+        exports(name, fn)
         AddEventHandler(('__cfx_export_ox_inventory_%s'):format(name), function(setCB) setCB(fn) end)
     end
 
     oxExport('Items', function(item)
+        if item then return clientItems[item] end
+        return clientItems
+    end)
+    oxExport('ItemList', function(item)
         if item then return clientItems[item] end
         return clientItems
     end)
@@ -1221,6 +1270,33 @@ if Config.compat and Config.compat.oxinventory and GetResourceState('ox_inventor
         return i and i:toClient() or nil
     end)
 
+    oxExport('GetInventoryItems', function(inv)
+        local i = Inventory.get(inv)
+        return i and i:toClient().items or {}
+    end)
+
+    oxExport('GetSlot', function(inv, slotId)
+        local i = Inventory.get(inv)
+        return i and i.items[slotId] or nil
+    end)
+
+    oxExport('GetItem', function(inv, item, metadata, returnsCount)
+        local i = Inventory.get(inv)
+        if not i then return returnsCount and 0 or nil end
+        if returnsCount then return itemCount(i, item) end
+        for _, s in pairs(i.items) do
+            if s.name == item then return s end
+        end
+    end)
+
+    oxExport('GetSlotIdWithItem', function(inv, item)
+        local i = Inventory.get(inv)
+        if not i then return nil end
+        for slotId, s in pairs(i.items) do
+            if s.name == item then return slotId end
+        end
+    end)
+
     oxExport('CanCarryItem', function(inv, item, count)
         local i = Inventory.get(inv)
         if not i then return false end
@@ -1228,28 +1304,32 @@ if Config.compat and Config.compat.oxinventory and GetResourceState('ox_inventor
             and (i:findStack(item) or i:firstFree()) ~= nil
     end)
 
-    oxExport('AddItem', function(inv, item, count, metadata)
+    oxExport('AddItem', function(inv, item, count, metadata, slot, cb)
         local i = Inventory.get(inv)
-        if not i then return false end
+        if not i then if cb then cb(false) end return false end
         local target = i:findStack(item, metadata) or i:firstFree()
         local ok = i:addItem(item, count, metadata)
         if ok then
             if target then pushSlots(i, { target }) end
             pushWeight(inv)
             notify(inv, item, 'ui_added', count or 1)
+            Metrics.inc('items_added', count or 1)
         end
+        if cb then cb(ok) end
         return ok
     end)
 
-    oxExport('RemoveItem', function(inv, item, count, metadata)
+    oxExport('RemoveItem', function(inv, item, count, metadata, slot, cb)
         local i = Inventory.get(inv)
-        if not i then return false end
+        if not i then if cb then cb(false) end return false end
         count = count or 1
-        if itemCount(i, item) < count then return false end
+        if itemCount(i, item) < count then if cb then cb(false) end return false end
         local changed = removeByName(i, item, count)
         pushSlots(i, changed)
         pushWeight(inv)
         notify(inv, item, 'ui_removed', count)
+        Metrics.inc('items_removed', count)
+        if cb then cb(true) end
         return true
     end)
 
@@ -1262,6 +1342,20 @@ if Config.compat and Config.compat.oxinventory and GetResourceState('ox_inventor
             if s.name == item then slots[#slots + 1] = s end
         end
         return slots
+    end)
+
+    oxExport('GetItemSlots', function(inv, item)
+        local i = Inventory.get(inv)
+        local slots, totalCount = {}, 0
+        if i then
+            for slotId, s in pairs(i.items) do
+                if s.name == (type(item) == 'table' and item.name or item) then
+                    slots[slotId] = s.count
+                    totalCount = totalCount + s.count
+                end
+            end
+        end
+        return slots, totalCount
     end)
 
     Logs.action('stash', nil, 'ox_inventory compatibility exports enabled')

@@ -21,7 +21,8 @@
   $: label = inventory.label || (side === 'left' ? $t('ui_player', 'Player') : inventory.type === 'drop' ? $t('ui_ground', 'Ground') : inventory.type?.toUpperCase() || $t('ui_target', 'Target'));
   $: cash = $leftInventory.items.find((slot) => slot.name === 'money' || slot.name === 'cash')?.count || 0;
   $: bank = $leftInventory.items.find((slot) => slot.name === 'bank')?.count || 0;
-  $: groupRank = inventory.groups ? Math.max(...Object.values(inventory.groups).map(Number).filter(Number.isFinite)) : undefined;
+  $: groupGrades = inventory.groups ? Object.values(inventory.groups).map(Number).filter(Number.isFinite) : [];
+  $: groupRank = groupGrades.length ? Math.max(...groupGrades) : undefined;
 </script>
 
 <section class={`inventory-panel ${side}-inventory-panel`} style:pointer-events={$isBusy ? 'none' : 'auto'}>

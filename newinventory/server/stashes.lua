@@ -43,6 +43,11 @@ function Stashes.ensure(id)
 
     local stored = Db.load(id, 'stash')
 
+    -- Db.load yields; another open may have created it meanwhile — reuse it so
+    -- two callers never load two separate copies.
+    existing = Inventory.get(id)
+    if existing then return existing end
+
     local inv = Inventory.create(id, {
         type = 'stash',
         owner = id,

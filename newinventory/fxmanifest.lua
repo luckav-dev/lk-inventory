@@ -7,6 +7,11 @@ author 'LK'
 version '0.1.0'
 description 'LK Inventory — original advanced inventory with real ground objects'
 
+-- Acts as ox_inventory for the rest of the server: GetResourceState('ox_inventory')
+-- returns started and any resource that `dependency 'ox_inventory'` is satisfied,
+-- so existing scripts work with no edits. Don't run a real ox_inventory alongside.
+provide 'ox_inventory'
+
 dependencies {
     'ox_lib',
     'oxmysql',

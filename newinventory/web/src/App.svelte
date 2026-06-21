@@ -150,7 +150,8 @@
   function keyDown(event: KeyboardEvent) {
     if (event.key === 'Shift') shiftPressed.set(true);
 
-    if ((event.key === 'Escape' || event.key === 'Backspace') && document.activeElement?.tagName !== 'INPUT') {
+    // The audit panel handles its own Escape; don't also fire the inventory exit.
+    if ((event.key === 'Escape' || event.key === 'Backspace') && document.activeElement?.tagName !== 'INPUT' && !$auditVisible) {
       event.preventDefault();
       closeInventory();
     }

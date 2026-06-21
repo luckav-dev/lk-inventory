@@ -27,4 +27,5 @@ else
     require 'client.search'
     require 'client.dumpsters'
     require 'client.admin'
+    require 'client.compat'
 end

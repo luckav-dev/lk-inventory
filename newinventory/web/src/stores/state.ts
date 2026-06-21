@@ -152,9 +152,7 @@ function targetStoreForPayload(payload: RefreshSlotPayload) {
   const right = get(rightInventory);
 
   if (!payload.inventory || payload.inventory === 'player' || payload.inventory === left.id) return leftInventory;
-  if (payload.inventory === right.id || payload.inventory !== 'player') return rightInventory;
-
-  return leftInventory;
+  return rightInventory;
 }
 
 export function refreshSlots(payload: RefreshPayload) {
