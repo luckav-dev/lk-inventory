@@ -127,8 +127,15 @@ else
         suppresspickups = GetConvarBool('inventory:suppresspickups', true),
         disableweapons = GetConvarBool('inventory:disableweapons', false),
         disablesetupnotification = GetConvarBool('inventory:disablesetupnotification', false),
-        enablestealcommand = GetConvarBool('inventory:enablestealcommand', true)
+        enablestealcommand = GetConvarBool('inventory:enablestealcommand', true),
+        defaultlayout = GetConvar('inventory:defaultlayout', 'classic')
     }
+
+    -- Server-wide default inventory layout. Players can still override their own
+    -- preference with /inventoryconfig. Accepts 'classic' or 'compact'
+    -- ('compact' maps to the internal 'stacked-right' layout).
+    local defaultlayout = (client.defaultlayout or 'classic'):lower()
+    client.defaultlayout = (defaultlayout == 'compact' or defaultlayout == 'stacked-right') and 'stacked-right' or 'classic'
 
     local ignoreweapons = table.create(0, (client.ignoreweapons and #client.ignoreweapons or 0) + 3)
 

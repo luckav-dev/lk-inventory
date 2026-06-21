@@ -41,6 +41,7 @@
     items?: Record<string, ItemData>;
     leftInventory?: Inventory;
     imagepath?: string;
+    defaultlayout?: 'classic' | 'stacked-right';
   };
 
   async function syncPinState() {

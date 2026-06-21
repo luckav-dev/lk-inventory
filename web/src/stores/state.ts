@@ -108,11 +108,18 @@ export function initInventory(data: {
   items?: Record<string, ItemData>;
   leftInventory?: Inventory;
   imagepath?: string;
+  defaultlayout?: 'classic' | 'stacked-right';
 }) {
   if (data.locale) locale.set(data.locale);
   if (data.items) items.set(data.items);
   if (data.imagepath) imagePath.set(data.imagepath);
   if (data.leftInventory) leftInventory.set(normalizeInventory(data.leftInventory));
+
+  // Apply the server-wide default layout only when the player has not chosen
+  // their own preference via /inventoryconfig (which writes to localStorage).
+  if (data.defaultlayout && !localStorage.getItem('inventory-layout')) {
+    inventoryLayout.set(data.defaultlayout === 'stacked-right' ? 'stacked-right' : 'classic');
+  }
 }
 
 function targetStoreForPayload(payload: RefreshSlotPayload) {
