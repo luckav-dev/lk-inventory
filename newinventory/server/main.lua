@@ -12,6 +12,14 @@ local Crafting  = require 'server.crafting'
 local Money     = require 'server.money'
 local Security  = require 'server.security'
 local Logs      = require 'server.logs'
+local Metrics   = require 'server.metrics'
+local Dupe      = require 'server.dupe'
+local Snapshots = require 'server.snapshots'
+
+--- Admin gate for audit/rollback (ACE permission; console is always allowed).
+local function isAdmin(source)
+    return source == 0 or IsPlayerAceAllowed(source, Config.admin.ace)
+end
 
 --- Send a notification to a client through the pluggable notify layer.
 local function notifyClient(source, description, ntype, title)
@@ -216,6 +224,7 @@ Framework.onLoaded(function(source, ownerId, name)
     })
 
     Drops.syncTo(source)
+    Snapshots.loadFor(source, ownerId)
     Utils.log('info', ('loaded inventory for %s (%s)'):format(name, ownerId))
 
     -- Render body visuals (holstered weapons / backpack) once the client is up.
@@ -249,6 +258,7 @@ Framework.onDropped(function(source)
     searchable[source] = nil
     pinUnlocked[source] = nil
     pendingThrow[source] = nil
+    Snapshots.clear(source)
     Security.clear(source)
 end)
 
@@ -279,6 +289,99 @@ CreateThread(function()
         end
     end
 end)
+
+----------------------------------------------------------------------
+-- Anti-dupe scanning + snapshots/rollback + admin audit
+----------------------------------------------------------------------
+
+-- Periodic duplication scan: the same unique instance in two places is a dupe.
+CreateThread(function()
+    if not Config.dupe.enabled then return end
+    while true do
+        Wait(Config.dupe.interval)
+        for _, d in ipairs(Dupe.scan()) do
+            Metrics.inc('dupes_flagged')
+            Logs.action('dupe', nil,
+                ('duplicate %s [%s] in %s/slot %s'):format(d.name, d.id, tostring(d.invId), tostring(d.slotId)))
+            TriggerEvent('lk_inv:dupe', d.invId, d.slotId, d.id, d.name)
+
+            if Config.dupe.autoRemove then
+                local inv = Inventory.get(d.invId)
+                local slot = inv and inv.items[d.slotId]
+                if slot then
+                    inv:removeFromSlot(d.slotId, slot.count)
+                    pushSlots(inv, { d.slotId })
+                    if inv.type == 'player' then pushWeight(d.invId) end
+                end
+            end
+        end
+    end
+end)
+
+-- Periodic inventory snapshots for rollback.
+CreateThread(function()
+    if not Config.snapshots.enabled then return end
+    while true do
+        Wait(Config.snapshots.interval)
+        for id, inv in pairs(Inventory.all()) do
+            if inv.type == 'player' then Snapshots.take(id) end
+        end
+    end
+end)
+
+--- Restore a player's inventory to a snapshot and re-sync them. Returns ok.
+local function doRollback(adminSource, target, index)
+    if not Snapshots.restore(target, index) then return false end
+
+    local inv = Inventory.get(target)
+    if inv then
+        local all = {}
+        for i = 1, inv.slots do all[i] = i end
+        pushSlots(inv, all)
+        pushWeight(target)
+        savePlayer(target)
+    end
+
+    Metrics.inc('rollbacks')
+    Logs.action('rollback', adminSource, ('rolled back player %s to snapshot %d'):format(target, index))
+    return true
+end
+
+lib.callback.register('lk_inv:getAudit', function(source)
+    if not isAdmin(source) then return false end
+    return Logs.recent()
+end)
+
+lib.callback.register('lk_inv:listSnapshots', function(source, targetId)
+    if not isAdmin(source) then return {} end
+    return Snapshots.list(tonumber(targetId) or source)
+end)
+
+lib.callback.register('lk_inv:rollback', function(source, data)
+    if not isAdmin(source) or type(data) ~= 'table' then return false end
+    return doRollback(source, tonumber(data.target) or source, tonumber(data.index) or 1)
+end)
+
+RegisterCommand('lk_snapshots', function(source, args)
+    if not isAdmin(source) then return end
+    local target = tonumber(args[1])
+    if not target then return print('usage: lk_snapshots <playerId>') end
+    print(('^5[lk_inv] snapshots for %s:^0'):format(target))
+    for _, s in ipairs(Snapshots.list(target)) do
+        print(('  [%d] %d slots — %s'):format(s.index, s.slots, tostring(s.at)))
+    end
+end, false)
+
+RegisterCommand('lk_rollback', function(source, args)
+    if not isAdmin(source) then return end
+    local target, index = tonumber(args[1]), tonumber(args[2]) or 1
+    if not target then return print('usage: lk_rollback <playerId> <index>') end
+    if doRollback(source, target, index) then
+        print(('^2[lk_inv] rolled back %s to snapshot %d^0'):format(target, index))
+    else
+        print('^1[lk_inv] rollback failed (no such player/snapshot)^0')
+    end
+end, false)
 
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
@@ -362,6 +465,7 @@ lib.callback.register('lk_inv:swap', function(source, data)
     local action = data.toType == 'newdrop' and 'drop' or 'swap'
     if not Security.allow(source, action) then
         Security.flag(source, action .. ' rate exceeded')
+        Metrics.inc('exploit_flags')
         return false
     end
 
@@ -379,6 +483,7 @@ lib.callback.register('lk_inv:swap', function(source, data)
         pushSlots(from, { data.fromSlot })
         pushWeight(source)
         Logs.action('drop', source, ('dropped %dx %s'):format(count, slot.name))
+        Metrics.inc('drops_created')
         return true
     end
 
@@ -407,6 +512,7 @@ lib.callback.register('lk_inv:swap', function(source, data)
     if to.type == 'container' then updateContainerParent(to.id) end
 
     pushWeight(source)
+    Metrics.inc('swaps')
 
     -- Clean up emptied drops
     if from.type == 'drop' and not next(from.items) then
@@ -450,6 +556,7 @@ lib.callback.register('lk_inv:buyItem', function(source, data)
     pushWeight(source)
     notify(source, shopSlot.name, 'ui_added', count)
     Logs.action('buy', source, ('bought %dx %s for %d (%s)'):format(count, shopSlot.name, price, account))
+    Metrics.inc('buys')
     return true
 end)
 
@@ -508,6 +615,7 @@ lib.callback.register('lk_inv:craftItem', function(source, data)
     pushWeight(source)
     notify(source, recipe.name, 'ui_added', resultCount)
     Logs.action('craft', source, ('crafted %dx %s'):format(resultCount, recipe.name))
+    Metrics.inc('crafts')
     return true
 end)
 
@@ -589,6 +697,7 @@ lib.callback.register('lk_inv:searchPlayer', function(source, targetId)
 
     authorize(source, targetId)
     Logs.action('frisk', source, ('searched player %s'):format(targetId))
+    Metrics.inc('frisks')
     return targetId
 end)
 
@@ -625,6 +734,7 @@ lib.callback.register('lk_inv:searchDumpster', function(source, coords)
 
     authorize(source, id)
     Logs.action('dumpster', source, 'searched a dumpster')
+    Metrics.inc('dumpsters')
     return id
 end)
 
@@ -806,6 +916,7 @@ RegisterNetEvent('lk_inv:throwLand', function(coords)
     Drops.create(vec3(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0),
         pending.name, pending.count, pending.metadata, src)
     Logs.action('drop', src, ('threw %s'):format(pending.name))
+    Metrics.inc('throws')
 end)
 
 lib.callback.register('lk_inv:useItem', function(source, slotId)
@@ -997,6 +1108,7 @@ lib.callback.register('lk_inv:give', function(source, data)
         pushSlots(from, Money.syncItem(source))
         pushSlots(to, Money.syncItem(target))
         Logs.action('money', source, ('gave $%d to %s'):format(amount, target))
+    Metrics.inc('money_given')
         return true
     end
 
@@ -1041,7 +1153,9 @@ exports('AddItem', function(source, name, count, metadata)
     local ok = inv:addItem(name, count, metadata)
     if ok then
         if before then pushSlots(inv, { before }) end
+        pushWeight(source)
         notify(source, name, 'ui_added', count or 1)
+        Metrics.inc('items_added', count or 1)
     end
     return ok
 end)
@@ -1054,7 +1168,9 @@ exports('RemoveItem', function(source, slotId, count)
     local ok = inv:removeFromSlot(slotId, count)
     if ok then
         pushSlots(inv, { slotId })
+        pushWeight(source)
         if slot then notify(source, slot.name, 'ui_removed', count or slot.count) end
+        Metrics.inc('items_removed', count or 1)
     end
     return ok
 end)

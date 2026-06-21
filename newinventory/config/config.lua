@@ -143,6 +143,34 @@ return {
         oxinventory = true,
     },
 
+    -- Admin gating for the audit panel and rollback commands (ACE permission).
+    admin = { ace = 'lk_inv.admin' },
+
+    -- Duplication detection: scans loaded inventories for the same unique item
+    -- instance existing in two places and (optionally) removes the copy.
+    dupe = {
+        enabled    = true,
+        interval   = 60 * 1000,
+        autoRemove = true,
+    },
+
+    -- Periodic inventory snapshots for anti-dupe rollback.
+    snapshots = {
+        enabled  = true,
+        keep     = 6,            -- snapshots retained per player
+        interval = 5 * 60 * 1000,
+    },
+
+    -- Metrics: console summary (/lk_stats) and a Prometheus /metrics endpoint
+    -- served on the resource's HTTP handler.
+    metrics = {
+        enabled = true,
+        http    = true,
+    },
+
+    -- In-memory audit log size (entries kept for the audit panel).
+    auditBuffer = 200,
+
     -- How often (ms) dirty inventories are flushed to the database
     saveInterval = 5 * 60 * 1000,
 

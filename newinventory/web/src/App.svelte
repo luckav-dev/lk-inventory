@@ -14,6 +14,7 @@
   import WeaponModal from './components/WeaponModal.svelte';
   import ConfigPanel from './components/ConfigPanel.svelte';
   import Toasts from './components/Toasts.svelte';
+  import AuditPanel from './components/AuditPanel.svelte';
   import { fetchNui, isEnvBrowser } from './lib/nui';
   import { applyThemeColor } from './lib/theme';
   import { playSound } from './lib/audio';
@@ -27,6 +28,8 @@
     inventoryVisible,
     leftInventory,
     mergeAdditionalMetadata,
+    auditEntries,
+    auditVisible,
     pinState,
     pushToast,
     refreshSlots,
@@ -96,6 +99,10 @@
         break;
       case 'playSound':
         playSound((data as { name: string })?.name);
+        break;
+      case 'openAudit':
+        auditEntries.set((data as { entries?: unknown[] })?.entries as never[] || []);
+        auditVisible.set(true);
         break;
       case 'toggleHotbar':
         if (typeof data === 'number') activePlayerSlot.set(data);
@@ -331,4 +338,5 @@
 
   <!-- Always-visible notification toasts (shown even when the inventory is closed). -->
   <Toasts />
+  <AuditPanel />
 </SvelteUIProvider>

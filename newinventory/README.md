@@ -40,6 +40,12 @@ needs a live server.
   trucks ≫ vans > 4x4 > cars > sports > bikes, with per-model overrides.
 - **Container weight is real** — a bag's contents count toward your total weight.
 - **Built-in anti-dump** — token-bucket rate limits + per-player/global drop caps.
+- **Duplication detection** — every non-stackable instance carries a unique id;
+  a periodic scan flags (and optionally removes) any copy found in two places.
+- **Snapshot / rollback** — periodic inventory snapshots (`/lk_rollback`) to undo
+  a dupe, persisted across restarts.
+- **Audit panel + metrics** — `/lk_audit` shows a themed log of who took what;
+  a `/metrics` Prometheus endpoint and `/lk_stats` console summary.
 - **Visible equipment on the body** — holstered weapons show on your back/thigh
   and a worn backpack appears when you carry a bag (the equipped gun hides).
 - **Carry heavy items in hand** — a `box`-type item is picked up with a carry

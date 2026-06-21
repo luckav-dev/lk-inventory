@@ -184,6 +184,12 @@ function Inventory:addItem(name, count, metadata)
         metadata.uses = def.uses
     end
 
+    -- Unique instance id for non-stackable items, used by duplication detection
+    -- (a single instance must never appear in two inventories at once).
+    if not def.stack and not metadata.__uid and not metadata.serial and not metadata.container then
+        metadata.__uid = uid('item')
+    end
+
     local addWeight = slotWeight(name, count)
     if not self:canHold(addWeight) then return false end
 

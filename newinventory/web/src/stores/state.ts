@@ -38,6 +38,11 @@ export const pinUnlocks = writable<Record<string, boolean>>({});
 export const pinState = writable<{ inventoryId: string | number; required: boolean; unlocked: boolean; error?: string } | null>(null);
 export const weaponModal = writable<{ item: SlotWithItem; slot: number } | null>(null);
 
+// Admin audit panel
+export type AuditEntry = { category: string; player: string; message: string; time: string };
+export const auditVisible = writable(false);
+export const auditEntries = writable<AuditEntry[]>([]);
+
 // Built-in notification toasts — our themed replacement for ox_lib's lib.notify
 // when ox_lib isn't on the server. Always visible (even with the inventory shut).
 export type Toast = { id: number; title?: string; description: string; type: string };

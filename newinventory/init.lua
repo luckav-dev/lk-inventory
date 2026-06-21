@@ -26,4 +26,5 @@ else
     require 'client.cargo'
     require 'client.search'
     require 'client.dumpsters'
+    require 'client.admin'
 end

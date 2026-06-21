@@ -3004,3 +3004,80 @@ body:not(.is-browser) .debug-view-selector {
   font-size: 1.45vh;
   color: var(--text-grey);
 }
+
+/* ==========================================
+   ADMIN AUDIT PANEL
+   ========================================== */
+.lk-audit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.lk-audit-panel {
+  width: 64vh;
+  max-width: 92vw;
+  max-height: 78vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(150deg, rgba(20, 20, 20, 0.98), rgba(8, 8, 8, 0.98));
+  border: 1px solid rgba(var(--primary-red-rgb), 0.35);
+  border-radius: 1vh;
+  box-shadow: 0 1vh 4vh rgba(0, 0, 0, 0.6);
+  color: var(--text-white);
+  font-family: var(--font-medium);
+  overflow: hidden;
+}
+
+.lk-audit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.6vh 2vh;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.lk-audit-header h2 {
+  font-family: var(--font-demibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 2vh;
+}
+.lk-audit-close {
+  background: transparent;
+  color: var(--text-grey);
+  font-size: 2.6vh;
+  line-height: 1;
+  cursor: pointer;
+}
+.lk-audit-close:hover { color: var(--primary-red); }
+
+.lk-audit-list {
+  overflow-y: auto;
+  padding: 1vh 1.4vh 1.6vh;
+}
+.lk-audit-empty { color: var(--text-grey); padding: 2vh; text-align: center; }
+
+.lk-audit-row {
+  display: grid;
+  grid-template-columns: 7vh 9vh 14vh 1fr;
+  gap: 1vh;
+  align-items: baseline;
+  padding: 0.7vh 0.6vh;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 1.45vh;
+}
+.lk-audit-time { color: var(--text-grey); }
+.lk-audit-cat {
+  text-transform: uppercase;
+  font-family: var(--font-demibold);
+  font-size: 1.25vh;
+  color: var(--primary-red);
+}
+.lk-audit-cat.cat-dupe, .lk-audit-cat.cat-rollback { color: #eab308; }
+.lk-audit-cat.cat-money { color: #16a34a; }
+.lk-audit-player { color: var(--color-gray-400); }
+.lk-audit-msg { color: var(--text-white); }
