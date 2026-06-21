@@ -784,6 +784,18 @@ lib.callback.register('lk_inv:throwItem', function(source, data)
     return { name = name, metadata = meta, render = itemRender(name) }
 end)
 
+--- Move a ground drop after a player kicks it (client reports the new resting
+--- spot; the server validates proximity to the old spot and re-broadcasts).
+RegisterNetEvent('lk_inv:moveDrop', function(dropId, coords)
+    local src = source
+    if type(coords) ~= 'vector3' and type(coords) ~= 'table' then return end
+    local old = Drops.getCoords(dropId)
+    if not old then return end
+    local ped = GetPlayerPed(src)
+    if ped == 0 or #(GetEntityCoords(ped) - old) > 5.0 then return end
+    Drops.move(dropId, vec3(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0))
+end)
+
 RegisterNetEvent('lk_inv:throwLand', function(coords)
     local src = source
     local pending = pendingThrow[src]
@@ -863,7 +875,8 @@ lib.callback.register('lk_inv:useItem', function(source, slotId)
     end
 
     pushWeight(source)
-    return true
+    -- Tell the client which item was used so it can play the use animation.
+    return { used = slot.name }
 end)
 
 --- Repair the equipped weapon with a repair kit (client supplies both slots).

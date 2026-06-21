@@ -14,6 +14,8 @@ return {
         spawnProps    = true,
         fallbackModel = 'prop_cs_cardbox_01',
         pickupKey     = 38,    -- INPUT_PICKUP (E)
+        kickKey       = 47,    -- INPUT_DETONATE (G) — kick/push a ground drop
+        kickForce     = 7.0,
         interactDist  = 1.6,
         renderDist    = 20.0,
         despawnAfter  = 15 * 60 * 1000, -- 15 min of nobody nearby (0 = never)

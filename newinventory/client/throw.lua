@@ -63,6 +63,7 @@ function Throw.start(data)
     local fy = math.cos(yaw) * math.cos(pitch)
     local fz = math.sin(pitch)
     SetEntityVelocity(obj, fx * cfg.force, fy * cfg.force, fz * cfg.force + cfg.upForce)
+    if _G.LkSound then LkSound.play('throw') end
 
     ClearPedTasks(ped)
     RemoveAnimDict(cfg.anim.dict)

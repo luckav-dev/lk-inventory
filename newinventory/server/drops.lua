@@ -96,4 +96,14 @@ function Drops.getCoords(id)
     return meta[id] and meta[id].coords
 end
 
+--- Relocate a drop (e.g. after a kick) and re-broadcast it to all clients so
+--- the world object and its pickup point follow.
+function Drops.move(id, coords)
+    local m = meta[id]
+    if not m or not coords then return end
+    m.coords = coords
+    TriggerClientEvent('lk_inv:removeDrop', -1, id)
+    TriggerClientEvent('lk_inv:spawnDrop', -1, id, coords, { model = m.model, weapon = m.weapon })
+end
+
 return Drops

@@ -1,5 +1,6 @@
 local Config = require 'config.config'
 local Utils  = require 'shared.utils'
+local Sound  = require 'client.sound'
 
 local Client = {
     uiLoaded = false,
@@ -51,6 +52,7 @@ function Client.openInventory(secondaryId)
 
     SetNuiFocus(true, true)
     screenBlurIn()
+    Sound.play('open')
 end
 
 function Client.closeInventory()
@@ -62,6 +64,7 @@ function Client.closeInventory()
     screenBlurOut()
     SendNUIMessage({ action = 'closeInventory' })
     TriggerServerEvent('lk_inv:closeInventory')
+    Sound.play('close')
 end
 
 -- Open command + keybind

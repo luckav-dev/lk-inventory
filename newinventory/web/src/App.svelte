@@ -16,6 +16,7 @@
   import Toasts from './components/Toasts.svelte';
   import { fetchNui, isEnvBrowser } from './lib/nui';
   import { applyThemeColor } from './lib/theme';
+  import { playSound } from './lib/audio';
   import {
     activePlayerSlot,
     addNotification,
@@ -92,6 +93,9 @@
         break;
       case 'notify':
         pushToast(data as { title?: string; description: string; type?: string });
+        break;
+      case 'playSound':
+        playSound((data as { name: string })?.name);
         break;
       case 'toggleHotbar':
         if (typeof data === 'number') activePlayerSlot.set(data);

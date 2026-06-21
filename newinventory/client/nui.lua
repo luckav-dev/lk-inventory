@@ -2,6 +2,7 @@ local Client  = require 'client.main'
 local Weapons = require 'client.weapons'
 local Carry   = require 'client.carry'
 local Throw   = require 'client.throw'
+local UseAnim = require 'client.useanim'
 
 --- Find the closest player's server id (used for giving items).
 local function closestPlayer()
@@ -46,7 +47,19 @@ RegisterNUICallback('swapItems', function(data, cb)
         local coords = GetEntityCoords(cache.ped)
         data.coords = vec3(coords.x, coords.y, coords.z)
     end
-    cb(lib.callback.await('lk_inv:swap', false, data) or false)
+
+    local ok = lib.callback.await('lk_inv:swap', false, data) or false
+
+    -- Item sounds for moving to/from the ground.
+    if ok and _G.LkSound and data then
+        if data.toType == 'newdrop' then
+            LkSound.play('drop')
+        elseif data.fromType == 'drop' and data.toType == 'player' then
+            LkSound.play('pickup')
+        end
+    end
+
+    cb(ok)
 end)
 
 RegisterNUICallback('useItem', function(slot, cb)
@@ -57,6 +70,7 @@ RegisterNUICallback('useItem', function(slot, cb)
         if result.open then Client.openInventory(result.open); return cb(true) end
         if result.carry then Carry.start(result.carry); return cb(true) end
         if result.repair then Weapons.repair(result.repair); return cb(true) end
+        if result.used then UseAnim.play(result.used); return cb(true) end
     end
     cb(result or false)
 end)

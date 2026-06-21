@@ -11,8 +11,11 @@
 ---   ground      world model spawned when the item is dropped or thrown
 ---               (realism). Weapons use their own weapon object automatically.
 ---   hold        optional { pos = vec3, rot = vec3 } offset for how the prop
----               sits in the hand when thrown/carried (props have different
+---               sits in the hand when thrown/carried/used (props have different
 ---               origins; tune per item). Defaults to a sensible value.
+---   useAnim     optional { dict, clip, duration, prop?, noProp? } — animation
+---               played when the item is used; the prop (or `ground`) shows in
+---               the hand unless `noProp`. Anim names are tunable per server.
 ---   degrade     minutes until durability reaches 0 (optional)
 ---
 --- Every item should define `ground` so it shows correctly in the hand and on
@@ -25,17 +28,22 @@ return {
         ground = 'prop_ld_flow_bottle',
         hold = { pos = vec3(0.13, 0.02, -0.02), rot = vec3(0.0, 0.0, 0.0) },
         effects = { thirst = 25 }, -- relayed to a status/metabolism resource
+        -- Play a drinking animation with the bottle in hand when used.
+        useAnim = { dict = 'mp_player_intdrink', clip = 'loop_bottle', duration = 3500 },
     },
     burger = {
         label = 'Burger', weight = 220, stack = true, close = false, usable = true,
         description = 'Greasy but it does the job.',
         ground = 'prop_cs_burger_01',
         effects = { hunger = 30 },
+        useAnim = { dict = 'mp_player_inteat@burger', clip = 'mp_player_int_eat_burger', duration = 3500 },
     },
     bandage = {
         label = 'Bandage', weight = 100, stack = true, close = false, usable = true,
         ground = 'prop_cs_tablet',
         effects = { health = 15 },
+        -- No prop; just a brief patch-up gesture.
+        useAnim = { dict = 'amb@world_human_clipboard@male@idle_a', clip = 'idle_c', duration = 3000, noProp = true },
     },
     -- Limited-use item (charges decrement per use).
     spray = {

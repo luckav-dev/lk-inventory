@@ -32,6 +32,38 @@ local function spawnObject(render, coords)
     return obj
 end
 
+--- Kick/push a ground drop: a short kick animation, then physics force in the
+--- facing direction. Once it settles, the new position is reported so the drop
+--- (and its pickup point) follow for everyone.
+local function kickDrop(point)
+    local obj = point.entity
+    if not obj or not DoesEntityExist(obj) then return end
+
+    local ped = cache.ped
+    lib.requestAnimDict('melee@unarmed@streamed_core')
+    TaskPlayAnim(ped, 'melee@unarmed@streamed_core', 'kick_a', 4.0, -4.0, 600, 48, 0, false, false, false)
+    if point.showing then lib.hideTextUI(); point.showing = false end
+
+    Wait(120)
+    local fwd = GetEntityForwardVector(ped)
+    local force = Config.drops.kickForce
+    FreezeEntityPosition(obj, false)
+    ActivatePhysics(obj)
+    ApplyForceToEntity(obj, 1, fwd.x * force, fwd.y * force, 1.5, 0.0, 0.0, 0.0, 0, false, true, true, false, true)
+    if _G.LkSound then LkSound.play('kick') end
+
+    CreateThread(function()
+        Wait(1200)
+        ClearPedTasks(ped)
+        RemoveAnimDict('melee@unarmed@streamed_core')
+        if DoesEntityExist(obj) then
+            PlaceObjectOnGroundProperly(obj)
+            FreezeEntityPosition(obj, true)
+            TriggerServerEvent('lk_inv:moveDrop', point.dropId, GetEntityCoords(obj))
+        end
+    end)
+end
+
 RegisterNetEvent('lk_inv:spawnDrop', function(id, coords, render)
     if drops[id] then return end
     if not Config.drops.spawnProps then render = { model = Config.drops.fallbackModel } end
@@ -64,13 +96,17 @@ RegisterNetEvent('lk_inv:spawnDrop', function(id, coords, render)
         end
 
         if not self.showing then
-            lib.showTextUI('[E] Pick up', { position = 'left-center' })
+            lib.showTextUI('[E] Pick up  ·  [G] Kick', { position = 'left-center' })
             self.showing = true
         end
 
-        if IsControlJustReleased(0, Config.drops.pickupKey) and not Client.open then
+        if Client.open then return end
+
+        if IsControlJustReleased(0, Config.drops.pickupKey) then
             lib.hideTextUI(); self.showing = false
             Client.openInventory(id)
+        elseif IsControlJustReleased(0, Config.drops.kickKey) then
+            kickDrop(self)
         end
     end
 

@@ -47,6 +47,13 @@ needs a live server.
 - **Throw items by hand** — context-menu *Throw*: the item shows in your hand,
   you play a grenade/snowball-style animation, and it flies and lands as a real
   ground object where it falls (`client/throw.lua`, `config.throw`).
+- **Use animations** — using a consumable plays its animation with the item in
+  hand (drink/eat/bandage), per-item via `useAnim` (`client/useanim.lua`).
+- **Kick / push drops** — press **G** at a ground drop to kick it; it tumbles
+  with physics and its position syncs to everyone (`client/drops.lua`).
+- **Built-in sounds** — pickup / drop / throw / kick / use / open / close are
+  synthesised in the UI (no audio assets, no collisions) — `web/src/lib/audio.ts`,
+  `client/sound.lua`.
 - **Frisk / rob players** — search a downed or hands-up player's inventory, with
   a server-side authorization gate so you can't open arbitrary inventories.
 - **Searchable dumpsters** — rummage configured world props for random loot
