@@ -108,6 +108,22 @@ A premium, fully redesigned inventory system for FiveM built on the [ox_inventor
 
 ---
 
+## Configuration
+
+### Default inventory layout
+
+Set the server-wide default layout that every player sees the first time they open the inventory. Add this convar to your `server.cfg`:
+
+```
+# "classic"  -> side-by-side layout (default)
+# "compact"  -> stacked-right layout
+setr inventory:defaultlayout "compact"
+```
+
+Players can still override the default for themselves with the `/inventoryconfig` command (their personal choice is saved locally and takes priority over the server default).
+
+---
+
 ## Project Structure
 
 ```
