@@ -1,7 +1,7 @@
 <script lang="ts">
   import { get } from 'svelte/store';
   import { isEnvBrowser } from '../lib/nui';
-  import { inventoryVisible, leftInventory, normalizeInventory, pinState, rightInventory, weaponModal, configVisible } from '../stores/state';
+  import { addNotification, inventoryVisible, leftInventory, normalizeInventory, pinState, pushToast, rightInventory, weaponModal, configVisible } from '../stores/state';
   import type { Inventory } from '../types';
 
   const modes = [
@@ -133,6 +133,30 @@
     configVisible.set(true);
     inventoryVisible.set(true);
   }
+
+  // ---- Notifications preview (our built-in toast system) ----
+  function toast(type: 'success' | 'error' | 'inform') {
+    const samples = {
+      success: { title: 'Comprado', description: 'Has comprado 2x Agua' },
+      error: { title: 'Sin espacio', description: 'No te cabe ese objeto' },
+      inform: { title: 'Inventario', description: 'Pulsa TAB para la hotbar' },
+    } as const;
+    pushToast({ ...samples[type], type });
+  }
+
+  // ---- Item slide-in notifications ----
+  function itemNotify(kind: 'ui_added' | 'ui_removed') {
+    addNotification([{ slot: 1, name: 'water', count: 2, weight: 1000 }, kind, 2]);
+  }
+
+  // ---- Open the weapon modification modal directly ----
+  function openWeaponModal() {
+    inventoryVisible.set(true);
+    weaponModal.set({
+      item: { slot: 1, name: 'WEAPON_PISTOL', count: 1, weight: 1200, metadata: { ammo: 12, durability: 80, components: [] } },
+      slot: 1,
+    });
+  }
 </script>
 
 {#if isEnvBrowser()}
@@ -147,7 +171,20 @@
       <button class="debug-switch-btn" class:active={$configVisible} type="button" on:click={openDebugConfig}>
         Configurar Tema
       </button>
+      <button class="debug-switch-btn" type="button" on:click={openWeaponModal}>
+        Modal de Arma
+      </button>
     </div>
+
+    <h3>NOTIFICACIONES</h3>
+    <div class="debug-btn-group">
+      <button class="debug-switch-btn" type="button" on:click={() => toast('success')}>Toast Éxito</button>
+      <button class="debug-switch-btn" type="button" on:click={() => toast('error')}>Toast Error</button>
+      <button class="debug-switch-btn" type="button" on:click={() => toast('inform')}>Toast Info</button>
+      <button class="debug-switch-btn" type="button" on:click={() => itemNotify('ui_added')}>Item +</button>
+      <button class="debug-switch-btn" type="button" on:click={() => itemNotify('ui_removed')}>Item −</button>
+    </div>
+
     <div class="debug-instructions">
       <p>Usa click derecho en un arma para probar <strong>Accesorios de Armas</strong>.</p>
       <p>Pulsa <strong>Tab</strong> para ver el <strong>HUD Hotbar</strong>.</p>

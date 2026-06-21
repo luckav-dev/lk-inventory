@@ -8,6 +8,28 @@ interface, copied in unchanged.
 > Status: feature-complete core; advanced systems built out across the phases
 > below. Pure logic is unit-tested; FiveM-native paths await a live-server pass.
 
+## Preview the UI in your browser (no FiveM needed)
+Every interface — inventory, drops, trunk/glovebox, shop, PIN stash, crafting,
+theme config, weapon modal and the notification toasts — can be tested in a
+normal browser, so you don't have to launch the game just to check the UI.
+
+```bash
+cd newinventory/web
+bun install      # or: pnpm install
+bun run start    # vite dev server → http://localhost:5173
+```
+
+Open the URL. A **"CONTROLES DE PRUEBA"** panel appears (only in the browser)
+with buttons to switch between every panel and to fire the notifications:
+- **Drop / Trunk / Glovebox / Shop / PIN stash / Crafting / Theme config**
+- **Weapon modal** (or right-click a weapon → *Modify*)
+- **Toasts** (success / error / inform) and **item +/−** slide-ins
+- Press **Tab** for the hotbar HUD
+
+This drives the real components with sample data; `fetchNui` calls are mocked
+in the browser, so moves/uses update locally. It's UI-only — game logic still
+needs a live server.
+
 ## Things this does that ox_inventory doesn't
 - **Real dropped objects** — a dropped weapon lies on the floor as the actual
   gun; other items use a configured prop (ox shows a generic bag).
