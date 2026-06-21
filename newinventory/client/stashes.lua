@@ -1,4 +1,5 @@
 local Config    = require 'config.config'
+local Locale = require 'shared.locale'
 local StashDefs = require 'config.stashes'
 local Client    = require 'client.main'
 
@@ -22,7 +23,7 @@ local function makePoint(def)
         end
 
         if not self.showing then
-            lib.showTextUI(('[E] %s'):format(self.label or 'Open'), { position = 'left-center' })
+            lib.showTextUI(Locale.t('hint_open', self.label or 'Open'), { position = 'left-center' })
             self.showing = true
         end
 

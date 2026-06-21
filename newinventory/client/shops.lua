@@ -1,4 +1,5 @@
 local Config   = require 'config.config'
+local Locale = require 'shared.locale'
 local ShopDefs = require 'config.shops'
 local Client   = require 'client.main'
 
@@ -22,7 +23,7 @@ local function makePoint(def)
         end
 
         if not self.showing then
-            lib.showTextUI(('[E] %s'):format(self.label or 'Shop'), { position = 'left-center' })
+            lib.showTextUI(Locale.t('hint_open', self.label or 'Shop'), { position = 'left-center' })
             self.showing = true
         end
 

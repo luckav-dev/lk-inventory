@@ -1,4 +1,5 @@
 local Config = require 'config.config'
+local Locale = require 'shared.locale'
 local Client = require 'client.main'
 
 --- Renders ground drops as real world objects. Weapons appear as the actual
@@ -96,7 +97,7 @@ RegisterNetEvent('lk_inv:spawnDrop', function(id, coords, render)
         end
 
         if not self.showing then
-            lib.showTextUI('[E] Pick up  ·  [G] Kick', { position = 'left-center' })
+            lib.showTextUI(Locale.t('hint_pickup'), { position = 'left-center' })
             self.showing = true
         end
 

@@ -1,4 +1,5 @@
 local Items  = require 'config.items'
+local Locale = require 'shared.locale'
 local Client = require 'client.main'
 
 --- Carry heavy items in your hands: a looped animation, the prop attached to
@@ -36,7 +37,7 @@ function Carry.start(item)
         prop = attachProp(cfg.prop, cfg), dict = cfg.dict,
     }
 
-    if lib.showTextUI then lib.showTextUI('[E] Set down', { position = 'left-center' }) end
+    if lib.showTextUI then lib.showTextUI(Locale.t('hint_setdown'), { position = 'left-center' }) end
 
     -- Lock movement/weapons and drop on E.
     CreateThread(function()

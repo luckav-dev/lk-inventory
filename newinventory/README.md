@@ -8,6 +8,18 @@ interface, copied in unchanged.
 > Status: feature-complete core; advanced systems built out across the phases
 > below. Pure logic is unit-tested; FiveM-native paths await a live-server pass.
 
+## Language
+The whole inventory is multilingual — interface, in-world prompts and messages
+share one source of truth. Pick the language in `config.lua`:
+
+```lua
+locale = 'en',   -- en | es | pt  (add your own in locales/<code>.lua)
+```
+
+Translations live in `locales/*.lua` (English is the fallback for any missing
+key). The server loads the chosen language and sends it to the NUI, so a single
+setting changes everything. Adding a language is just a new `locales/xx.lua`.
+
 ## Preview the UI in your browser (no FiveM needed)
 Every interface — inventory, drops, trunk/glovebox, shop, PIN stash, crafting,
 theme config, weapon modal and the notification toasts — can be tested in a

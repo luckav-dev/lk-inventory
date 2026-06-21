@@ -1,4 +1,5 @@
 local Config = require 'config.dumpsters'
+local Locale = require 'shared.locale'
 local Client = require 'client.main'
 
 --- Searchable dumpsters: walk up to one of the configured props and press the
@@ -26,7 +27,7 @@ CreateThread(function()
             if obj and #(coords - GetEntityCoords(obj)) <= Config.distance then
                 wait = 0
                 if not showing then
-                    lib.showTextUI('[E] Search', { position = 'left-center' })
+                    lib.showTextUI(Locale.t('hint_search'), { position = 'left-center' })
                     showing = true
                 end
                 if IsControlJustReleased(0, Config.key) then

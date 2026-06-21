@@ -1,4 +1,5 @@
 local Items  = require 'config.items'
+local Locale = require 'shared.locale'
 local Notify = require 'client.notify'
 
 --- Weapon handling: equip/holster via use, ammo + durability persistence, and
@@ -73,21 +74,21 @@ end
 --- Repair the equipped weapon using a repair kit.
 function Weapons.repair(kit)
     if not current then
-        Notify.send({ type = 'error', description = 'Equip the weapon you want to repair' })
+        Notify.send({ type = 'error', description = Locale.t('equip_to_repair') })
         return
     end
     local result = lib.callback.await('lk_inv:repairWeapon', false,
         { kitSlot = kit.slot, weaponSlot = current.slot })
     if result then
         current.durability = result
-        Notify.send({ type = 'success', description = 'Weapon repaired' })
+        Notify.send({ type = 'success', description = Locale.t('weapon_repaired') })
     end
 end
 
 --- Attach a component item to the currently equipped weapon.
 function Weapons.attach(component)
     if not current then
-        Notify.send({ type = 'error', description = 'Equip a weapon first' })
+        Notify.send({ type = 'error', description = Locale.t('equip_weapon_first') })
         return
     end
 
@@ -128,7 +129,7 @@ CreateThread(function()
             if lastAmmo and ammo < lastAmmo then
                 current.durability = math.max(0, current.durability - (lastAmmo - ammo) * DURABILITY_PER_BULLET)
                 if current.durability <= 0 then
-                    Notify.send({ type = 'error', description = 'Your weapon is broken' })
+                    Notify.send({ type = 'error', description = Locale.t('weapon_broken') })
                     SetPedAmmo(cache.ped, current.hash, 0)
                 end
             end

@@ -32,6 +32,7 @@ ui_page 'web/build/index.html'
 files {
     'config/*.lua',
     'shared/*.lua',
+    'locales/*.lua',
     'client/*.lua',
     'web/build/index.html',
     'web/build/**/*',

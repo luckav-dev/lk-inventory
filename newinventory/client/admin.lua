@@ -1,4 +1,5 @@
 local Notify = require 'client.notify'
+local Locale = require 'shared.locale'
 
 --- Opens the in-game audit panel (server gates access by ACE permission). The
 --- `/lk_snapshots` and `/lk_rollback` admin commands are registered server-side
@@ -6,7 +7,7 @@ local Notify = require 'client.notify'
 RegisterCommand('lk_audit', function()
     local entries = lib.callback.await('lk_inv:getAudit', false)
     if entries == false then
-        Notify.send({ type = 'error', description = 'No permission' })
+        Notify.send({ type = 'error', description = Locale.t('no_permission') })
         return
     end
 

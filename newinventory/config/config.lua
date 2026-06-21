@@ -1,7 +1,8 @@
----@class LkConfig
---- Central settings for the LK inventory. These are plain Lua values (not
---- convars) so they are easy to read and version with the resource.
+--- Central settings for the LK inventory.
 return {
+    -- Interface language: matches a file in locales/ (en | es | pt | ...).
+    locale = 'en',
+
     -- Default player capacity
     playerSlots  = 50,
     playerWeight = 50000, -- grams (50 kg)

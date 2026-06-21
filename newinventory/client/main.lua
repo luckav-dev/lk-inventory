@@ -1,6 +1,7 @@
 local Config = require 'config.config'
 local Utils  = require 'shared.utils'
 local Sound  = require 'client.sound'
+local Locale = require 'shared.locale'
 
 local Client = {
     uiLoaded = false,
@@ -36,7 +37,7 @@ function Client.openInventory(secondaryId)
         SendNUIMessage({
             action = 'init',
             data = {
-                locale = {},
+                locale = Locale.all(),
                 items = data.items,
                 imagepath = data.imagepath,
                 leftInventory = data.left,
@@ -67,7 +68,6 @@ function Client.closeInventory()
     Sound.play('close')
 end
 
--- Open command + keybind
 RegisterCommand(Config.open.command, function()
     if Client.open then Client.closeInventory() else Client.openInventory() end
 end, false)

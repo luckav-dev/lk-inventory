@@ -1,6 +1,7 @@
 local Config    = require 'config.config'
 local Items     = require 'config.items'
 local Utils     = require 'shared.utils'
+local Locale    = require 'shared.locale'
 local Db        = require 'server.db'
 local Framework = require 'server.framework'
 local Inventory = require 'server.inventory'
@@ -601,7 +602,7 @@ lib.callback.register('lk_inv:craftItem', function(source, data)
     if not success then
         pushSlots(player, changed)
         pushWeight(source)
-        notifyClient(source, 'Crafting failed — materials lost', 'error')
+        notifyClient(source, Locale.t('crafting_failed'), 'error')
         Logs.action('craft', source, ('failed crafting %s'):format(recipe.name))
         return true
     end
@@ -759,7 +760,7 @@ lib.callback.register('lk_inv:unlockPin', function(source, data)
         pinUnlocked[source][stashId] = true
         return { success = true }
     end
-    return { success = false, error = 'Wrong PIN' }
+    return { success = false, error = Locale.t('wrong_pin') }
 end)
 
 ----------------------------------------------------------------------
@@ -827,8 +828,8 @@ lib.callback.register('lk_inv:pickpocket', function(source, targetId)
 
     -- Fail: alert the victim.
     if math.random() > (Config.pickpocket.chance or 0.5) then
-        notifyClient(targetId, 'Someone just tried to pickpocket you!', 'error')
-        notifyClient(source, 'You failed and got noticed', 'error')
+        notifyClient(targetId, Locale.t('pickpocket_victim'), 'error')
+        notifyClient(source, Locale.t('pickpocket_failed'), 'error')
         return false
     end
 
@@ -847,7 +848,7 @@ lib.callback.register('lk_inv:pickpocket', function(source, targetId)
     pushSlots(thief, { thief:findStack(pick.name, pick.metadata) or pick.slot })
     pushSlots(victim, { pick.slot })
     pushWeight(source); pushWeight(targetId)
-    notifyClient(source, ('You lifted a %s'):format(pick.name), 'success')
+    notifyClient(source, Locale.t('lifted_item', pick.name), 'success')
     Logs.action('frisk', source, ('pickpocketed %s from %s'):format(pick.name, targetId))
     return true
 end)
