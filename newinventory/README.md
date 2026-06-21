@@ -113,6 +113,9 @@ touching it.
   `/handsup`), not on unreliable server-side `GetEntityHealth`.
 
 ## Install
+1. Import `lk_inv.sql` into your database (optional — the resource also creates
+   the tables automatically on first start).
+2. Add to `server.cfg`:
 ```cfg
 ensure oxmysql
 ensure ox_lib
@@ -120,6 +123,8 @@ ensure qb-core
 ensure lk_inv
 ```
 Open with `/inv` or the `TAB` keybind (configurable in `config/config.lua`).
+
+Tables created: `lk_inventories` (all inventories) and `lk_snapshots` (rollback).
 
 ## What works now
 **Phase 1 — core**
